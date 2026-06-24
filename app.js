@@ -983,36 +983,111 @@ function setupEventListeners() {
 // ---------------- CARD INTERACTIONS ----------------
 function setupMainSentenceCardClicks() {
   document.querySelectorAll("#main-sentences-list .sentence-card").forEach(card => {
-    // 1. 대표문장 영어 길게 누르는 동안 가림 해제 (마우스/터치 홀드)
     const enText = card.querySelector(".card-english");
+    let startX = 0;
+    let startY = 0;
+    let isDown = false;
+    let isDragging = false;
 
+    // 1. 영어 길게 누르는 동안 노출 (홀드)
     const revealEnglish = (e) => {
-      if (e.target.closest(".btn-delete") || e.target.closest(".btn-speak")) return;
+      if (e.target.closest(".btn-delete") || e.target.closest(".btn-speak") || e.target.closest("button")) return;
       enText.classList.remove("blurred");
     };
-    
+
     const blurEnglish = () => {
       enText.classList.add("blurred");
     };
 
-    // 마우스 이벤트 바인딩
-    card.addEventListener("mousedown", revealEnglish);
-    card.addEventListener("mouseup", blurEnglish);
-    card.addEventListener("mouseleave", blurEnglish);
+    // 마우스 누름 시작
+    card.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".btn-delete") || e.target.closest(".btn-speak") || e.target.closest("button")) return;
+      revealEnglish(e);
+      startX = e.clientX;
+      startY = e.clientY;
+      isDown = true;
+      isDragging = false;
+      card.style.transition = "none";
+    });
 
-    // 모바일 터치 이벤트 바인딩 (passive: true로 스크롤 최적화)
-    card.addEventListener("touchstart", revealEnglish, { passive: true });
-    card.addEventListener("touchend", blurEnglish, { passive: true });
-    card.addEventListener("touchcancel", blurEnglish, { passive: true });
+    // 터치 누름 시작
+    card.addEventListener("touchstart", (e) => {
+      if (e.target.closest(".btn-delete") || e.target.closest(".btn-speak") || e.target.closest("button")) return;
+      revealEnglish(e);
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      isDown = true;
+      isDragging = false;
+      card.style.transition = "none";
+    }, { passive: true });
 
-    // 2. 좌우 스와이프 제스처 시 패턴 카드 슬라이드 오버 창 띄우기
-    registerSwipe(card, () => {
-      const id = card.dataset.id;
-      selectedMainSentenceId = id;
-      document.querySelectorAll("#main-sentences-list .sentence-card").forEach(c => c.classList.remove("active"));
-      card.classList.add("active");
-      renderPatternCards();
-      showToast("패턴 카드로 들어왔습니다! 💡", "success");
+    // 공통 드래그 이동 함수 (움직임 반영)
+    const handleMove = (currentX, currentY) => {
+      if (!isDown) return;
+      const diffX = currentX - startX;
+      const diffY = currentY - startY;
+
+      // 수평 성분이 더 큰 드래그가 감지되면 움직임 반영 (좌우로 플로팅)
+      if (Math.abs(diffX) > 8 && Math.abs(diffX) > Math.abs(diffY)) {
+        isDragging = true;
+        // 카드가 손가락/마우스를 따라가며 둥둥 뜨는 플로팅 효과 적용
+        card.style.transform = `translateX(${diffX}px) rotate(${diffX * 0.03}deg) scale(1.02)`;
+        card.style.boxShadow = "0 15px 30px rgba(74, 63, 53, 0.15)";
+        card.style.zIndex = "100";
+      }
+    };
+
+    window.addEventListener("mousemove", (e) => {
+      if (isDown) handleMove(e.clientX, e.clientY);
+    });
+
+    card.addEventListener("touchmove", (e) => {
+      if (isDown) handleMove(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+
+    // 공통 드래그 종료 함수 (복귀 또는 스와이프 전송)
+    const handleEnd = (endX, endY) => {
+      if (!isDown) return;
+      isDown = false;
+      blurEnglish();
+
+      // 스냅백 복귀 애니메이션 적용
+      card.style.transition = "transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease, scale 0.3s ease";
+      card.style.transform = "";
+      card.style.boxShadow = "";
+      card.style.zIndex = "";
+
+      const diffX = endX - startX;
+      const diffY = endY - startY;
+
+      // 60px 이상 가로 드래그되었을 경우 스와이프 전환 성공
+      if (isDragging && Math.abs(diffX) > 60 && Math.abs(diffY) < 50) {
+        const id = card.dataset.id;
+        selectedMainSentenceId = id;
+        document.querySelectorAll("#main-sentences-list .sentence-card").forEach(c => c.classList.remove("active"));
+        card.classList.add("active");
+        renderPatternCards();
+        showToast("패턴 카드로 들어왔습니다! 💡", "success");
+      }
+    };
+
+    window.addEventListener("mouseup", (e) => {
+      if (isDown) handleEnd(e.clientX, e.clientY);
+    });
+
+    card.addEventListener("touchend", (e) => {
+      if (isDown) handleEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+    }, { passive: true });
+
+    card.addEventListener("touchcancel", () => {
+      if (isDown) {
+        isDown = false;
+        blurEnglish();
+        card.style.transition = "transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)";
+        card.style.transform = "";
+        card.style.boxShadow = "";
+        card.style.zIndex = "";
+      }
     });
 
     // 대표문장 삭제 버튼
@@ -1143,7 +1218,7 @@ function registerSwipe(element, onSwipe) {
     handleSwipe(startX, endX, startY, endY);
   }, { passive: true });
 
-  // 데스크톱 마우스 스와이프 감지 (드래그)
+  // 데스크톱 마우스 스와이프 감지
   element.addEventListener("mousedown", (e) => {
     if (e.target.closest(".btn-delete") || e.target.closest(".btn-speak") || e.target.closest(".btn-delete-pattern") || e.target.closest("button")) {
       return;
@@ -1169,8 +1244,8 @@ function registerSwipe(element, onSwipe) {
     const diffX = eX - sX;
     const diffY = eY - sY;
 
-    // 가로 드래그 거리가 50px 이상이고, 세로 흔들림이 40px 이하인 경우에만 수평 스와이프로 감지
-    if (Math.abs(diffX) > 50 && Math.abs(diffY) < 40) {
+    // 수평 스와이프 판정 (60px 이상 이동 및 수직 변동성 50px 이하)
+    if (Math.abs(diffX) > 60 && Math.abs(diffY) < 50) {
       onSwipe(diffX < 0 ? "left" : "right");
     }
   }

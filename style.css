@@ -51,6 +51,17 @@ body {
 }
 
 /* ==================== BACKGROUND DECORATIONS ==================== */
+.bg-bubbles-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  z-index: -1;
+  pointer-events: none;
+}
+
 .bg-bubble {
   position: absolute;
   border-radius: 50%;
@@ -253,7 +264,8 @@ body {
   justify-content: center;
   align-items: center;
   flex: 1;
-  padding: 10px 0; /* 간격 축소 */
+  padding: 0; /* 간격 대폭 축소 */
+  margin-top: 0;
 }
 
 .auth-card {
@@ -274,14 +286,14 @@ body {
 }
 
 .auth-icon {
-  font-size: 4rem;
-  margin-bottom: 20px;
+  font-size: 3rem; /* 크기 약간 조절 */
+  margin-bottom: 8px; /* 마진 축소 */
   animation: bounce-slow 3s infinite ease-in-out;
 }
 
 @keyframes bounce-slow {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  50% { transform: translateY(-6px); }
 }
 
 .auth-card h2 {
@@ -530,6 +542,7 @@ body {
   flex-direction: column;
   gap: 12px;
   padding-right: 4px;
+  padding-bottom: 24px; /* 하단 짤림 방지 여백 추가 */
 }
 
 /* Custom Scrollbars */
@@ -819,7 +832,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  overflow-y: auto;
+  overflow: hidden; /* 부모인 패널 바디 스크롤 제거하여 이중 스크롤 버그 차단 */
+}
+
+/* 플로팅 패널 내부의 카드 컨테이너 크기 및 스크롤 패딩 명시 */
+.pattern-overlay-panel .sentences-list-container {
+  max-height: calc(100vh - 170px) !important;
+  padding-bottom: 60px !important; /* 마지막 카드의 성공/실패 버튼이 완전히 보이도록 충분한 패딩 적용 */
 }
 
 .panel-action-bar {
