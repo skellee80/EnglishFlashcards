@@ -1,0 +1,13 @@
+{
+  "name": "english-flashcards",
+  "version": "1.0.0",
+  "description": "Pastel English Flashcards Memorization App",
+  "main": "index.html",
+  "scripts": {
+    "build": "echo 'No build step required'",
+    "start": "http-server . -p $PORT"
+  },
+  "dependencies": {
+    "http-server": "^14.1.1"
+  }
+}
