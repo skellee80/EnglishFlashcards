@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>파스텔 영어 암기장 🌸</title>
+  <!-- Google Fonts: Fredoka (둥글둥글한 영문 폰트) & Gowun Dodum (귀여운 한글 고딕) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Gowun+Dodum&display=swap" rel="stylesheet">
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 배경 장식 (파스텔 물방울들) -->
+  <div class="bg-bubble bubble-1"></div>
+  <div class="bg-bubble bubble-2"></div>
+  <div class="bg-bubble bubble-3"></div>
+
+  <!-- 앱 컨테이너 -->
+  <div class="app-container">
+    
+    <!-- 헤더 -->
+    <header class="app-header">
+      <div class="header-logo">
+        <span class="logo-emoji">🌸</span>
+        <h1>러블리 영어 암기장</h1>
+      </div>
+      <div class="header-actions">
+        <!-- 모크 상태 알림 배너 -->
+        <span id="local-mode-badge" class="mode-badge badge-warning" style="display: none;">
+          <i data-lucide="info" class="icon-sm"></i> 임시 로컬 저장 모드
+        </span>
+        <button id="btn-firebase-config" class="btn btn-secondary btn-icon-text">
+          <i data-lucide="settings"></i> Firebase 설정
+        </button>
+        <div class="user-profile-badge" id="user-badge" style="display: none;">
+          <span class="avatar">🧸</span>
+          <span id="user-display-name" class="username">닉네임</span>
+          <button id="btn-logout" class="btn-logout-small" title="다른 닉네임으로 접속">
+            <i data-lucide="log-out"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- 로그인 / 닉네임 설정 화면 (닉네임이 등록되지 않았거나 처음 들어왔을 때 노출) -->
+    <main id="auth-view" class="main-content auth-card-container">
+      <div class="auth-card">
+        <div class="auth-icon">🧸</div>
+        <h2>반갑습니다!</h2>
+        <p class="auth-subtitle">영어 공부를 시작하기 위해 사용할 닉네임을 입력해 주세요.</p>
+        <div class="form-group">
+          <input type="text" id="input-nickname" placeholder="귀여운 닉네임을 적어주세요 (예: 길동이)" maxlength="15">
+        </div>
+        <button id="btn-login" class="btn btn-primary btn-block">암기장 입장하기 🌸</button>
+      </div>
+    </main>
+
+    <!-- 메인 대시보드 화면 (닉네임 설정 완료 시 노출) -->
+    <main id="main-view" class="main-content" style="display: none;">
+      
+      <!-- 상단 탭 메뉴 -->
+      <nav class="tab-navigation">
+        <button class="tab-button active" data-tab="tab-deck">
+          <i data-lucide="book-open"></i> 나의 암기장
+        </button>
+        <button class="tab-button" data-tab="tab-review">
+          <i data-lucide="calendar"></i> 복습 보관함
+          <span class="badge-count" id="review-count-badge">0</span>
+        </button>
+      </nav>
+
+      <!-- 탭 1: 나의 암기장 (메인 문장 및 패턴 카드 리스트) -->
+      <section id="tab-deck" class="tab-section active">
+        <div class="deck-layout">
+          
+          <!-- 왼쪽 영역: 대표 문장 -->
+          <div class="deck-column main-sentences-column">
+            <div class="column-header">
+              <h3><span class="emoji">⭐</span> 대표 문장 리스트</h3>
+              <button id="btn-add-main" class="btn btn-primary btn-sm">
+                <i data-lucide="plus"></i> 대표 문장 추가
+              </button>
+            </div>
+            <div class="sentences-list-container" id="main-sentences-list">
+              <!-- 대표 문장 카드가 동적으로 로드되는 곳 -->
+              <div class="empty-state">
+                <p>등록된 대표 문장이 없습니다.<br>첫 번째 대표 문장을 등록해 보세요!</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 오른쪽 영역: 비슷한 패턴 카드 -->
+          <div class="deck-column pattern-cards-column disabled" id="pattern-column">
+            <div class="column-header">
+              <h3 id="pattern-column-title"><span class="emoji">💡</span> 비슷한 패턴 카드 리스트</h3>
+              <button id="btn-add-pattern" class="btn btn-primary btn-sm" disabled>
+                <i data-lucide="plus"></i> 패턴 카드 추가
+              </button>
+            </div>
+            
+            <div class="pattern-hint" id="pattern-select-hint">
+              <i data-lucide="arrow-left" class="icon-lg bounce-x"></i>
+              <p>왼쪽의 대표 문장 카드를 선택하면<br>비슷한 패턴의 문장을 연습할 수 있습니다.</p>
+            </div>
+
+            <div class="sentences-list-container" id="pattern-cards-list" style="display: none;">
+              <!-- 패턴 카드가 동적으로 로드되는 곳 -->
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- 탭 2: 복습 보관함 (실패 카드 및 성공 횟수별 복습 카드) -->
+      <section id="tab-review" class="tab-section">
+        <div class="review-header-bar">
+          <div class="review-title-area">
+            <h3><span class="emoji">📅</span> 간격 반복 복습 (Leitner System)</h3>
+            <p>성공 횟수에 따라 복습 주기가 늘어납니다. 주기가 지난 카드만 다시 테스트할 수 있어요!</p>
+          </div>
+          <!-- 가속 모드 (개발자용) 토글 -->
+          <div class="toggle-container">
+            <span class="toggle-label">⚡ 테스트용 주기 가속 모드</span>
+            <label class="switch">
+              <input type="checkbox" id="toggle-speedy-mode">
+              <span class="slider round"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="review-layout">
+          
+          <!-- 실패한 카드 섹션 -->
+          <div class="review-column failed-column">
+            <div class="column-header-red">
+              <h4><i data-lucide="x-circle"></i> 실패한 카드 (<span id="failed-count">0</span>)</h4>
+            </div>
+            <div class="review-cards-list" id="failed-cards-list">
+              <!-- 실패한 카드가 로드되는 곳 -->
+              <div class="empty-state-small">실패한 카드가 없습니다. 참 잘하고 있어요! 🎉</div>
+            </div>
+          </div>
+
+          <!-- 성공한 카드 섹션 (성공 횟수별 가로/세로 그룹화) -->
+          <div class="review-column success-column">
+            <div class="column-header-green">
+              <h4><i data-lucide="check-circle"></i> 성공한 카드 보관함</h4>
+            </div>
+            
+            <div class="success-groups-container">
+              <!-- 1회 성공 ~ 6회 성공 그룹들 -->
+              <div class="success-group" data-stage="1">
+                <div class="group-title">🌱 1회 성공 (대기: <span class="stage-time">2주</span>)</div>
+                <div class="group-cards" id="success-stage-1"></div>
+              </div>
+              <div class="success-group" data-stage="2">
+                <div class="group-title">🌿 2회 성공 (대기: <span class="stage-time">1달</span>)</div>
+                <div class="group-cards" id="success-stage-2"></div>
+              </div>
+              <div class="success-group" data-stage="3">
+                <div class="group-title">🍀 3회 성공 (대기: <span class="stage-time">3달</span>)</div>
+                <div class="group-cards" id="success-stage-3"></div>
+              </div>
+              <div class="success-group" data-stage="4">
+                <div class="group-title">🌳 4회 성공 (대기: <span class="stage-time">6달</span>)</div>
+                <div class="group-cards" id="success-stage-4"></div>
+              </div>
+              <div class="success-group" data-stage="5">
+                <div class="group-title">👑 5회 성공 (대기: <span class="stage-time">1년</span>)</div>
+                <div class="group-cards" id="success-stage-5"></div>
+              </div>
+              <div class="success-group" data-stage="6">
+                <div class="group-title">✨ 6회 성공 (대기: <span class="stage-time">2년</span>)</div>
+                <div class="group-cards" id="success-stage-6"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+  </div> <!-- /app-container -->
+
+
+  <!-- ==================== MODALS & DIALOGS ==================== -->
+
+  <!-- 1. Firebase Config 설정 모달 -->
+  <div class="modal-backdrop" id="modal-firebase">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i data-lucide="settings" class="color-primary"></i> Firebase 프로젝트 설정</h3>
+        <button class="btn-close" id="btn-close-firebase-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Firebase 웹 앱의 `firebaseConfig` 객체 텍스트 또는 JSON 코드를 붙여넣어 주세요. 서버와 연동하여 데이터를 보존할 수 있습니다.</p>
+        <div class="form-group">
+          <label for="textarea-config">Firebase Configuration JSON</label>
+          <textarea id="textarea-config" rows="8" placeholder='{
+  "apiKey": "AIzaSy...",
+  "authDomain": "...",
+  "projectId": "...",
+  "storageBucket": "...",
+  "messagingSenderId": "...",
+  "appId": "..."
+}'></textarea>
+        </div>
+        <div class="modal-tip">
+          <strong>💡 팁:</strong> 설정값을 적지 않고 저장하면 <strong>임시 로컬 모드</strong>로 작동하며, 브라우저 캐시에만 정보가 저장됩니다.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-firebase-modal">취소</button>
+        <button id="btn-save-config" class="btn btn-primary">설정 저장 💾</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 대표 문장 추가 모달 -->
+  <div class="modal-backdrop" id="modal-add-main">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>⭐ 새 대표 문장 추가</h3>
+        <button class="btn-close" id="btn-close-add-main-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="main-ko">한글 뜻</label>
+          <div class="input-with-voice">
+            <input type="text" id="main-ko" placeholder="예: 오늘 저녁에 시간 있어?">
+            <button class="btn-voice-input" data-target="main-ko" title="한글 음성 입력">
+              <i data-lucide="mic"></i>
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="main-en">영어 문장</label>
+          <div class="input-with-voice">
+            <input type="text" id="main-en" placeholder="예: Are you free this evening?">
+            <button class="btn-voice-input" data-target="main-en" data-lang="en-US" title="영어 음성 입력">
+              <i data-lucide="mic"></i>
+            </button>
+          </div>
+        </div>
+        <!-- 음성 인식 진행 표시기 -->
+        <div class="voice-recording-status" id="voice-recording-status-main" style="display:none;">
+          <div class="voice-wave">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <span class="status-text">음성을 듣고 있어요... 말씀해 주세요!</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-add-main-modal">취소</button>
+        <button id="btn-save-main" class="btn btn-primary">추가 완료 🌸</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 패턴 카드 추가 모달 -->
+  <div class="modal-backdrop" id="modal-add-pattern">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>💡 새 패턴 카드 추가</h3>
+        <button class="btn-close" id="btn-close-add-pattern-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc" id="add-pattern-parent-desc">대표 문장: "..."</p>
+        <div class="form-group">
+          <label for="pattern-ko">한글 뜻</label>
+          <div class="input-with-voice">
+            <input type="text" id="pattern-ko" placeholder="예: 내일 오후에 시간 있어?">
+            <button class="btn-voice-input" data-target="pattern-ko" title="한글 음성 입력">
+              <i data-lucide="mic"></i>
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="pattern-en">영어 문장</label>
+          <div class="input-with-voice">
+            <input type="text" id="pattern-en" placeholder="예: Are you free tomorrow afternoon?">
+            <button class="btn-voice-input" data-target="pattern-en" data-lang="en-US" title="영어 음성 입력">
+              <i data-lucide="mic"></i>
+            </button>
+          </div>
+        </div>
+        <!-- 음성 인식 진행 표시기 -->
+        <div class="voice-recording-status" id="voice-recording-status-pattern" style="display:none;">
+          <div class="voice-wave">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <span class="status-text">음성을 듣고 있어요... 말씀해 주세요!</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-add-pattern-modal">취소</button>
+        <button id="btn-save-pattern" class="btn btn-primary">추가 완료 🌸</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 게임 테스트 모달 -->
+  <div class="modal-backdrop" id="modal-game">
+    <div class="modal-card modal-game-card">
+      <div class="modal-header">
+        <h3>🎙️ 문장 발음 테스트 게임</h3>
+        <button class="btn-close" id="btn-close-game-modal">&times;</button>
+      </div>
+      <div class="modal-body game-body">
+        
+        <div class="game-stage">
+          <div class="game-hint-card">
+            <span class="badge-stage" id="game-card-stage">대표문장/패턴</span>
+            <h4 id="game-korean-text">한글 뜻이 여기에 표시됩니다.</h4>
+            <div class="game-english-reveal-container">
+              <button id="btn-game-reveal" class="btn-text">영어 정답 보기 <i data-lucide="eye"></i></button>
+              <h4 id="game-english-target" class="game-english-target-text hidden">영어 정답 문장</h4>
+            </div>
+          </div>
+
+          <!-- 음성 입력 유도 그래픽 -->
+          <div class="voice-interactive-area">
+            <div class="cute-character" id="cute-character-emoji">🧸</div>
+            
+            <button id="btn-game-mic" class="btn-game-mic">
+              <i data-lucide="mic" class="mic-icon-large"></i>
+            </button>
+            <p id="game-mic-instruction">마이크 버튼을 클릭하고 영어 문장을 읽어주세요!</p>
+            
+            <!-- 녹음 중 파동 효과 -->
+            <div class="game-voice-wave" id="game-wave" style="display: none;">
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+            </div>
+          </div>
+
+          <!-- 결과창 -->
+          <div class="game-result-container" id="game-result-container" style="display: none;">
+            <div class="result-badge" id="game-result-badge">성공 🎉</div>
+            <div class="result-details">
+              <div class="result-row">
+                <span class="label">내가 말한 문장:</span>
+                <span class="value" id="game-user-speech">"..."</span>
+              </div>
+              <div class="result-row">
+                <span class="label">실제 정답 문장:</span>
+                <span class="value" id="game-actual-english">"..."</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-game-modal">그만하기</button>
+        <button id="btn-game-retry" class="btn btn-warning" style="display: none;">다시 시도 🎙️</button>
+        <button id="btn-game-confirm" class="btn btn-primary" style="display: none;">완료 🌸</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 토스트 알림 컨테이너 -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- JavaScript logic -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
