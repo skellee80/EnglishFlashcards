@@ -445,8 +445,8 @@ function renderMainSentences() {
         </div>
         <div class="card-english-wrapper">
           <div class="card-english-column">
-            <!-- 대표문장은 영어 블러(blurred) 처리 제외 -->
-            <div class="card-english">${sentence.english}</div>
+            <!-- 대표문장은 영어 기본 가림(blurred) 처리 후 누르고 있는 동안 공개 -->
+            <div class="card-english blurred" id="en-${sentence.id}">${sentence.english}</div>
             <div class="card-korean">${sentence.korean}</div>
           </div>
           <button class="btn-card-action btn-speak" data-text="${sentence.english}" title="발음 듣기">
@@ -971,25 +971,48 @@ function setupEventListeners() {
   // 9. 패턴 패널 닫기 버튼 및 뒷배경 클릭 처리
   document.getElementById("btn-close-pattern-panel").addEventListener("click", closePatternPanel);
   document.getElementById("pattern-overlay-backdrop").addEventListener("click", closePatternPanel);
+
+  // 10. 패턴 패널 좌우 스와이프 시 닫고 대표 카드로 복귀
+  const panel = document.getElementById("pattern-overlay-panel");
+  registerSwipe(panel, () => {
+    closePatternPanel();
+    showToast("대표 문장 목록으로 돌아왔습니다! 🌸", "info");
+  });
 }
 
 // ---------------- CARD INTERACTIONS ----------------
 function setupMainSentenceCardClicks() {
   document.querySelectorAll("#main-sentences-list .sentence-card").forEach(card => {
-    card.addEventListener("click", (e) => {
-      if (e.target.closest(".btn-delete") || e.target.closest(".btn-speak")) {
-        return;
-      }
+    // 1. 대표문장 영어 길게 누르는 동안 가림 해제 (마우스/터치 홀드)
+    const enText = card.querySelector(".card-english");
+
+    const revealEnglish = (e) => {
+      if (e.target.closest(".btn-delete") || e.target.closest(".btn-speak")) return;
+      enText.classList.remove("blurred");
+    };
+    
+    const blurEnglish = () => {
+      enText.classList.add("blurred");
+    };
+
+    // 마우스 이벤트 바인딩
+    card.addEventListener("mousedown", revealEnglish);
+    card.addEventListener("mouseup", blurEnglish);
+    card.addEventListener("mouseleave", blurEnglish);
+
+    // 모바일 터치 이벤트 바인딩 (passive: true로 스크롤 최적화)
+    card.addEventListener("touchstart", revealEnglish, { passive: true });
+    card.addEventListener("touchend", blurEnglish, { passive: true });
+    card.addEventListener("touchcancel", blurEnglish, { passive: true });
+
+    // 2. 좌우 스와이프 제스처 시 패턴 카드 슬라이드 오버 창 띄우기
+    registerSwipe(card, () => {
       const id = card.dataset.id;
-      
-      if (selectedMainSentenceId === id) {
-        closePatternPanel();
-      } else {
-        selectedMainSentenceId = id;
-        document.querySelectorAll("#main-sentences-list .sentence-card").forEach(c => c.classList.remove("active"));
-        card.classList.add("active");
-        renderPatternCards();
-      }
+      selectedMainSentenceId = id;
+      document.querySelectorAll("#main-sentences-list .sentence-card").forEach(c => c.classList.remove("active"));
+      card.classList.add("active");
+      renderPatternCards();
+      showToast("패턴 카드로 들어왔습니다! 💡", "success");
     });
 
     // 대표문장 삭제 버튼
@@ -1100,4 +1123,55 @@ function showToast(message, type = "info") {
   setTimeout(() => {
     toast.remove();
   }, 3000);
+}
+
+// ==================== SWIPE GESTURE DETECTOR HELPER ====================
+function registerSwipe(element, onSwipe) {
+  let startX = 0;
+  let startY = 0;
+  let isDown = false;
+
+  // 모바일 터치 감지
+  element.addEventListener("touchstart", (e) => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, { passive: true });
+
+  element.addEventListener("touchend", (e) => {
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    handleSwipe(startX, endX, startY, endY);
+  }, { passive: true });
+
+  // 데스크톱 마우스 스와이프 감지 (드래그)
+  element.addEventListener("mousedown", (e) => {
+    if (e.target.closest(".btn-delete") || e.target.closest(".btn-speak") || e.target.closest(".btn-delete-pattern") || e.target.closest("button")) {
+      return;
+    }
+    startX = e.clientX;
+    startY = e.clientY;
+    isDown = true;
+  });
+
+  element.addEventListener("mouseup", (e) => {
+    if (!isDown) return;
+    isDown = false;
+    const endX = e.clientX;
+    const endY = e.clientY;
+    handleSwipe(startX, endX, startY, endY);
+  });
+
+  element.addEventListener("mouseleave", () => {
+    isDown = false;
+  });
+
+  function handleSwipe(sX, eX, sY, eY) {
+    const diffX = eX - sX;
+    const diffY = eY - sY;
+
+    // 가로 드래그 거리가 50px 이상이고, 세로 흔들림이 40px 이하인 경우에만 수평 스와이프로 감지
+    if (Math.abs(diffX) > 50 && Math.abs(diffY) < 40) {
+      onSwipe(diffX < 0 ? "left" : "right");
+    }
+  }
 }
