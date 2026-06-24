@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>파스텔 영어 암기장 🌸</title>
-  <!-- Google Fonts: Fredoka (둥글둥글한 영문 폰트) & Gowun Dodum (귀여운 한글 고딕) -->
+  <!-- Google Fonts: Fredoka & Gowun Dodum -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Gowun+Dodum&display=swap" rel="stylesheet">
@@ -30,13 +30,6 @@
         <h1>러블리 영어 암기장</h1>
       </div>
       <div class="header-actions">
-        <!-- 모크 상태 알림 배너 -->
-        <span id="local-mode-badge" class="mode-badge badge-warning" style="display: none;">
-          <i data-lucide="info" class="icon-sm"></i> 임시 로컬 저장 모드
-        </span>
-        <button id="btn-firebase-config" class="btn btn-secondary btn-icon-text">
-          <i data-lucide="settings"></i> Firebase 설정
-        </button>
         <div class="user-profile-badge" id="user-badge" style="display: none;">
           <span class="avatar">🧸</span>
           <span id="user-display-name" class="username">닉네임</span>
@@ -47,16 +40,24 @@
       </div>
     </header>
 
-    <!-- 로그인 / 닉네임 설정 화면 (닉네임이 등록되지 않았거나 처음 들어왔을 때 노출) -->
+    <!-- 로그인 / 닉네임 목록 및 추가 화면 -->
     <main id="auth-view" class="main-content auth-card-container">
       <div class="auth-card">
         <div class="auth-icon">🧸</div>
-        <h2>반갑습니다!</h2>
-        <p class="auth-subtitle">영어 공부를 시작하기 위해 사용할 닉네임을 입력해 주세요.</p>
-        <div class="form-group">
-          <input type="text" id="input-nickname" placeholder="귀여운 닉네임을 적어주세요 (예: 길동이)" maxlength="15">
+        <h2>누가 공부할까요?</h2>
+        <p class="auth-subtitle">등록된 닉네임을 선택하거나 새 닉네임을 추가해 주세요.</p>
+        
+        <!-- 닉네임 목록 표시 영역 -->
+        <div class="nickname-list-container" id="nickname-list">
+          <!-- 닉네임 카드들이 동적으로 로드되는 곳 -->
         </div>
-        <button id="btn-login" class="btn btn-primary btn-block">암기장 입장하기 🌸</button>
+
+        <div class="form-group nickname-add-group">
+          <input type="text" id="input-nickname" placeholder="새 닉네임 입력 (Enter를 치면 추가됩니다)" maxlength="15">
+          <button id="btn-add-nickname-submit" class="btn-add-nickname-submit" title="새 닉네임 추가">
+            <i data-lucide="plus"></i>
+          </button>
+        </div>
       </div>
     </main>
 
@@ -74,12 +75,12 @@
         </button>
       </nav>
 
-      <!-- 탭 1: 나의 암기장 (메인 문장 및 패턴 카드 리스트) -->
+      <!-- 탭 1: 나의 암기장 (대표 문장 리스트) -->
       <section id="tab-deck" class="tab-section active">
         <div class="deck-layout">
           
-          <!-- 왼쪽 영역: 대표 문장 -->
-          <div class="deck-column main-sentences-column">
+          <!-- 대표 문장 영역 -->
+          <div class="deck-column main-sentences-column full-width">
             <div class="column-header">
               <h3><span class="emoji">⭐</span> 대표 문장 리스트</h3>
               <button id="btn-add-main" class="btn btn-primary btn-sm">
@@ -94,25 +95,6 @@
             </div>
           </div>
 
-          <!-- 오른쪽 영역: 비슷한 패턴 카드 -->
-          <div class="deck-column pattern-cards-column disabled" id="pattern-column">
-            <div class="column-header">
-              <h3 id="pattern-column-title"><span class="emoji">💡</span> 비슷한 패턴 카드 리스트</h3>
-              <button id="btn-add-pattern" class="btn btn-primary btn-sm" disabled>
-                <i data-lucide="plus"></i> 패턴 카드 추가
-              </button>
-            </div>
-            
-            <div class="pattern-hint" id="pattern-select-hint">
-              <i data-lucide="arrow-left" class="icon-lg bounce-x"></i>
-              <p>왼쪽의 대표 문장 카드를 선택하면<br>비슷한 패턴의 문장을 연습할 수 있습니다.</p>
-            </div>
-
-            <div class="sentences-list-container" id="pattern-cards-list" style="display: none;">
-              <!-- 패턴 카드가 동적으로 로드되는 곳 -->
-            </div>
-          </div>
-
         </div>
       </section>
 
@@ -121,7 +103,7 @@
         <div class="review-header-bar">
           <div class="review-title-area">
             <h3><span class="emoji">📅</span> 간격 반복 복습 (Leitner System)</h3>
-            <p>성공 횟수에 따라 복습 주기가 늘어납니다. 주기가 지난 카드만 다시 테스트할 수 있어요!</p>
+            <p>자가 채점 방식으로 복습을 진행합니다. 복습일이 된 카드를 학습하고 성공/실패 여부를 체크해 주세요.</p>
           </div>
           <!-- 가속 모드 (개발자용) 토글 -->
           <div class="toggle-container">
@@ -146,7 +128,7 @@
             </div>
           </div>
 
-          <!-- 성공한 카드 섹션 (성공 횟수별 가로/세로 그룹화) -->
+          <!-- 성공한 카드 섹션 (성공 횟수별 복습 카드) -->
           <div class="review-column success-column">
             <div class="column-header-green">
               <h4><i data-lucide="check-circle"></i> 성공한 카드 보관함</h4>
@@ -189,40 +171,32 @@
   </div> <!-- /app-container -->
 
 
-  <!-- ==================== MODALS & DIALOGS ==================== -->
+  <!-- ==================== FLOATING OVERLAYS ==================== -->
 
-  <!-- 1. Firebase Config 설정 모달 -->
-  <div class="modal-backdrop" id="modal-firebase">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3><i data-lucide="settings" class="color-primary"></i> Firebase 프로젝트 설정</h3>
-        <button class="btn-close" id="btn-close-firebase-modal">&times;</button>
+  <!-- 대표 문장 클릭 시 우측/하단에서 슬라이드 오버되는 패턴 카드 레이어 -->
+  <div class="pattern-overlay-backdrop" id="pattern-overlay-backdrop"></div>
+  <div class="pattern-overlay-panel" id="pattern-overlay-panel">
+    <div class="panel-header">
+      <h3 id="pattern-column-title"><span class="emoji">💡</span> 비슷한 패턴 카드</h3>
+      <button class="btn-panel-close" id="btn-close-pattern-panel">&times;</button>
+    </div>
+    
+    <div class="panel-body">
+      <div class="panel-action-bar">
+        <button id="btn-add-pattern" class="btn btn-primary btn-block btn-sm">
+          <i data-lucide="plus"></i> 새 패턴 카드 추가
+        </button>
       </div>
-      <div class="modal-body">
-        <p class="modal-desc">Firebase 웹 앱의 `firebaseConfig` 객체 텍스트 또는 JSON 코드를 붙여넣어 주세요. 서버와 연동하여 데이터를 보존할 수 있습니다.</p>
-        <div class="form-group">
-          <label for="textarea-config">Firebase Configuration JSON</label>
-          <textarea id="textarea-config" rows="8" placeholder='{
-  "apiKey": "AIzaSy...",
-  "authDomain": "...",
-  "projectId": "...",
-  "storageBucket": "...",
-  "messagingSenderId": "...",
-  "appId": "..."
-}'></textarea>
-        </div>
-        <div class="modal-tip">
-          <strong>💡 팁:</strong> 설정값을 적지 않고 저장하면 <strong>임시 로컬 모드</strong>로 작동하며, 브라우저 캐시에만 정보가 저장됩니다.
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" id="btn-cancel-firebase-modal">취소</button>
-        <button id="btn-save-config" class="btn btn-primary">설정 저장 💾</button>
+      <div class="sentences-list-container" id="pattern-cards-list">
+        <!-- 패턴 카드가 동적으로 로드되는 곳 -->
       </div>
     </div>
   </div>
 
-  <!-- 2. 대표 문장 추가 모달 -->
+
+  <!-- ==================== MODALS & DIALOGS ==================== -->
+
+  <!-- 1. 대표 문장 추가 모달 -->
   <div class="modal-backdrop" id="modal-add-main">
     <div class="modal-card">
       <div class="modal-header">
@@ -231,19 +205,19 @@
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label for="main-ko">한글 뜻</label>
+          <label for="main-en">영어 문장</label>
           <div class="input-with-voice">
-            <input type="text" id="main-ko" placeholder="예: 오늘 저녁에 시간 있어?">
-            <button class="btn-voice-input" data-target="main-ko" title="한글 음성 입력">
+            <input type="text" id="main-en" placeholder="예: Are you free this evening?">
+            <button class="btn-voice-input" data-target="main-en" data-lang="en-US" title="영어 음성 입력">
               <i data-lucide="mic"></i>
             </button>
           </div>
         </div>
         <div class="form-group">
-          <label for="main-en">영어 문장</label>
+          <label for="main-ko">한글 뜻</label>
           <div class="input-with-voice">
-            <input type="text" id="main-en" placeholder="예: Are you free this evening?">
-            <button class="btn-voice-input" data-target="main-en" data-lang="en-US" title="영어 음성 입력">
+            <input type="text" id="main-ko" placeholder="예: 오늘 저녁에 시간 있어?">
+            <button class="btn-voice-input" data-target="main-ko" title="한글 음성 입력">
               <i data-lucide="mic"></i>
             </button>
           </div>
@@ -263,7 +237,7 @@
     </div>
   </div>
 
-  <!-- 3. 패턴 카드 추가 모달 -->
+  <!-- 2. 패턴 카드 추가 모달 -->
   <div class="modal-backdrop" id="modal-add-pattern">
     <div class="modal-card">
       <div class="modal-header">
@@ -273,19 +247,19 @@
       <div class="modal-body">
         <p class="modal-desc" id="add-pattern-parent-desc">대표 문장: "..."</p>
         <div class="form-group">
-          <label for="pattern-ko">한글 뜻</label>
+          <label for="pattern-en">영어 문장</label>
           <div class="input-with-voice">
-            <input type="text" id="pattern-ko" placeholder="예: 내일 오후에 시간 있어?">
-            <button class="btn-voice-input" data-target="pattern-ko" title="한글 음성 입력">
+            <input type="text" id="pattern-en" placeholder="예: Are you free tomorrow afternoon?">
+            <button class="btn-voice-input" data-target="pattern-en" data-lang="en-US" title="영어 음성 입력">
               <i data-lucide="mic"></i>
             </button>
           </div>
         </div>
         <div class="form-group">
-          <label for="pattern-en">영어 문장</label>
+          <label for="pattern-ko">한글 뜻</label>
           <div class="input-with-voice">
-            <input type="text" id="pattern-en" placeholder="예: Are you free tomorrow afternoon?">
-            <button class="btn-voice-input" data-target="pattern-en" data-lang="en-US" title="영어 음성 입력">
+            <input type="text" id="pattern-ko" placeholder="예: 내일 오후에 시간 있어?">
+            <button class="btn-voice-input" data-target="pattern-ko" title="한글 음성 입력">
               <i data-lucide="mic"></i>
             </button>
           </div>
@@ -305,66 +279,38 @@
     </div>
   </div>
 
-  <!-- 4. 게임 테스트 모달 -->
-  <div class="modal-backdrop" id="modal-game">
-    <div class="modal-card modal-game-card">
-      <div class="modal-header">
-        <h3>🎙️ 문장 발음 테스트 게임</h3>
-        <button class="btn-close" id="btn-close-game-modal">&times;</button>
+  <!-- 3. 아기자기한 스타일의 커스텀 삭제 확인 모달 -->
+  <div class="modal-backdrop" id="modal-cute-confirm">
+    <div class="modal-card modal-cute-confirm">
+      <div class="modal-body text-center">
+        <div class="confirm-emoji">😢</div>
+        <h3 id="delete-confirm-title">정말 삭제할까요?</h3>
+        <p id="delete-confirm-desc">삭제하면 복구할 수 없어요...</p>
       </div>
-      <div class="modal-body game-body">
-        
-        <div class="game-stage">
-          <div class="game-hint-card">
-            <span class="badge-stage" id="game-card-stage">대표문장/패턴</span>
-            <h4 id="game-korean-text">한글 뜻이 여기에 표시됩니다.</h4>
-            <div class="game-english-reveal-container">
-              <button id="btn-game-reveal" class="btn-text">영어 정답 보기 <i data-lucide="eye"></i></button>
-              <h4 id="game-english-target" class="game-english-target-text hidden">영어 정답 문장</h4>
-            </div>
-          </div>
+      <div class="modal-footer justify-center">
+        <button class="btn btn-secondary" id="btn-delete-cancel">아니, 취소! 🧸</button>
+        <button class="btn btn-danger" id="btn-delete-ok">응, 삭제할래! 🌸</button>
+      </div>
+    </div>
+  </div>
 
-          <!-- 음성 입력 유도 그래픽 -->
-          <div class="voice-interactive-area">
-            <div class="cute-character" id="cute-character-emoji">🧸</div>
-            
-            <button id="btn-game-mic" class="btn-game-mic">
-              <i data-lucide="mic" class="mic-icon-large"></i>
-            </button>
-            <p id="game-mic-instruction">마이크 버튼을 클릭하고 영어 문장을 읽어주세요!</p>
-            
-            <!-- 녹음 중 파동 효과 -->
-            <div class="game-voice-wave" id="game-wave" style="display: none;">
-              <div class="wave-bar"></div>
-              <div class="wave-bar"></div>
-              <div class="wave-bar"></div>
-              <div class="wave-bar"></div>
-              <div class="wave-bar"></div>
-            </div>
-          </div>
-
-          <!-- 결과창 -->
-          <div class="game-result-container" id="game-result-container" style="display: none;">
-            <div class="result-badge" id="game-result-badge">성공 🎉</div>
-            <div class="result-details">
-              <div class="result-row">
-                <span class="label">내가 말한 문장:</span>
-                <span class="value" id="game-user-speech">"..."</span>
-              </div>
-              <div class="result-row">
-                <span class="label">실제 정답 문장:</span>
-                <span class="value" id="game-actual-english">"..."</span>
-              </div>
-            </div>
-          </div>
-
+  <!-- 4. 닉네임 삭제 확인 모달 (텍스트 타이핑 매칭 검증) -->
+  <div class="modal-backdrop" id="modal-delete-nickname">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>🧸 닉네임 삭제 확인</h3>
+        <button class="btn-close" id="btn-close-delete-nickname-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc" id="delete-nickname-desc">닉네임 "..."의 모든 암기 데이터가 삭제됩니다.</p>
+        <p class="delete-warning-label">정말 삭제하시려면 아래에 닉네임을 똑같이 입력해 주세요:</p>
+        <div class="form-group">
+          <input type="text" id="input-delete-nickname-confirm" placeholder="닉네임을 입력하세요">
         </div>
-
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" id="btn-cancel-game-modal">그만하기</button>
-        <button id="btn-game-retry" class="btn btn-warning" style="display: none;">다시 시도 🎙️</button>
-        <button id="btn-game-confirm" class="btn btn-primary" style="display: none;">완료 🌸</button>
+        <button class="btn btn-secondary" id="btn-cancel-delete-nickname-modal">취소</button>
+        <button class="btn btn-danger" id="btn-confirm-delete-nickname" disabled>삭제 확정 🌸</button>
       </div>
     </div>
   </div>

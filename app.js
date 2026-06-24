@@ -16,9 +16,12 @@ let patternCards = [];
 let mainSentencesUnsubscribe = null;
 let patternCardsUnsubscribe = null;
 
+// 닉네임 삭제 확인 타겟
+let targetNicknameToDelete = "";
+
 // ==================== INITIALIZATION ====================
 document.addEventListener("DOMContentLoaded", () => {
-  // 1. Firebase Config 로드 및 초기화
+  // 1. Firebase Config 로드 및 초기화 (암묵적 백그라운드 초기화)
   let firebaseConfig = null;
   const storedConfig = localStorage.getItem("firebase_config");
   
@@ -40,12 +43,9 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (error) {
       console.error("Firebase connection failed. Switched to Mock mode:", error);
       isFirebaseActive = false;
-      document.getElementById("local-mode-badge").style.display = "inline-flex";
     }
   } else {
-    // 설정이 없을 때 임시 로컬 모드로 작동
     isFirebaseActive = false;
-    document.getElementById("local-mode-badge").style.display = "inline-flex";
   }
 
   // 2. UI 초기화 및 세션 체크
@@ -54,9 +54,11 @@ document.addEventListener("DOMContentLoaded", () => {
   startCountdownTimer();
 });
 
-// ==================== SESSION & LOGIN ====================
+// ==================== NICKNAME LISTS & SESSION ====================
 function checkSession() {
   const savedNickname = localStorage.getItem("nickname");
+  renderNicknameList();
+  
   if (savedNickname) {
     nickname = savedNickname;
     document.getElementById("user-display-name").innerText = nickname;
@@ -68,33 +70,151 @@ function checkSession() {
     document.getElementById("user-badge").style.display = "none";
     document.getElementById("auth-view").style.display = "flex";
     document.getElementById("main-view").style.display = "none";
+    
+    // 패턴 패널이 열려있다면 닫기
+    closePatternPanel();
   }
 }
 
-function handleLogin() {
+// 닉네임 목록 렌더링
+function renderNicknameList() {
+  const listContainer = document.getElementById("nickname-list");
+  const nicknames = JSON.parse(localStorage.getItem("all_nicknames") || "[]");
+
+  if (nicknames.length === 0) {
+    listContainer.innerHTML = `<div class="empty-state-small">등록된 닉네임이 없습니다. 새 닉네임을 적어 추가해 주세요! 🧸</div>`;
+    return;
+  }
+
+  listContainer.innerHTML = nicknames.map(nick => `
+    <div class="nickname-item-card" data-nick="${nick}">
+      <div class="nickname-info">
+        <span class="nickname-avatar">🧸</span>
+        <span>${nick}</span>
+      </div>
+      <button class="btn-delete-nickname" data-nick="${nick}" title="닉네임 삭제">
+        <i data-lucide="trash-2"></i>
+      </button>
+    </div>
+  `).join("");
+
+  lucide.createIcons();
+  setupNicknameCardEvents();
+}
+
+// 닉네임 카드 클릭 및 삭제 버튼 이벤트 바인딩
+function setupNicknameCardEvents() {
+  document.querySelectorAll(".nickname-item-card").forEach(card => {
+    card.addEventListener("click", (e) => {
+      // 만약 삭제 버튼을 눌렀다면 입장하지 않음
+      if (e.target.closest(".btn-delete-nickname")) return;
+      
+      const nick = card.dataset.nick;
+      localStorage.setItem("nickname", nick);
+      checkSession();
+      showToast(`${nick}님으로 입장했습니다! 🌸`, "success");
+    });
+  });
+
+  document.querySelectorAll(".btn-delete-nickname").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const nick = btn.dataset.nick;
+      openDeleteNicknameModal(nick);
+    });
+  });
+}
+
+// 닉네임 추가 및 바로 로그인
+function handleAddNickname() {
   const input = document.getElementById("input-nickname");
   const value = input.value.trim();
   if (value === "") {
-    showToast("닉네임을 입력해 주세요!", "error");
+    showToast("새 닉네임을 입력해 주세요!", "error");
     return;
   }
+
+  const nicknames = JSON.parse(localStorage.getItem("all_nicknames") || "[]");
+  if (!nicknames.includes(value)) {
+    nicknames.push(value);
+    localStorage.setItem("all_nicknames", JSON.stringify(nicknames));
+  }
+
+  // 바로 세션 활성화 및 렌더
   localStorage.setItem("nickname", value);
+  input.value = "";
   checkSession();
-  showToast(`${value}님, 환영합니다! 🧸`, "success");
+  showToast(`${value}님으로 신규 입장했습니다! 🌸`, "success");
 }
 
-function handleLogout() {
-  localStorage.removeItem("nickname");
-  // Subscriptions 해제
-  if (mainSentencesUnsubscribe) mainSentencesUnsubscribe();
-  if (patternCardsUnsubscribe) patternCardsUnsubscribe();
-  
-  selectedMainSentenceId = null;
-  mainSentences = [];
-  patternCards = [];
-  
+// 닉네임 삭제 확인 모달
+function openDeleteNicknameModal(nick) {
+  targetNicknameToDelete = nick;
+  document.getElementById("delete-nickname-desc").innerText = `닉네임 "${nick}"의 모든 로컬 학습 데이터가 영구 삭제됩니다.`;
+  document.getElementById("input-delete-nickname-confirm").value = "";
+  document.getElementById("btn-confirm-delete-nickname").disabled = true;
+  openModal("modal-delete-nickname");
+}
+
+function handleNicknameDeleteConfirmText(e) {
+  const text = e.target.value.trim();
+  const btn = document.getElementById("btn-confirm-delete-nickname");
+  btn.disabled = (text !== targetNicknameToDelete);
+}
+
+function executeNicknameDeletion() {
+  if (targetNicknameToDelete === "") return;
+
+  // 1. 닉네임 목록에서 제외
+  let nicknames = JSON.parse(localStorage.getItem("all_nicknames") || "[]");
+  nicknames = nicknames.filter(n => n !== targetNicknameToDelete);
+  localStorage.setItem("all_nicknames", JSON.stringify(nicknames));
+
+  // 2. 해당 닉네임의 로컬 데이터 전부 삭제
+  localStorage.removeItem(`mock_mainSentences_${targetNicknameToDelete}`);
+  localStorage.removeItem(`mock_patternCards_${targetNicknameToDelete}`);
+
+  // 3. 만약 현재 로그인된 닉네임이라면 로그아웃 처리
+  const currentNick = localStorage.getItem("nickname");
+  if (currentNick === targetNicknameToDelete) {
+    localStorage.removeItem("nickname");
+  }
+
+  closeModal("modal-delete-nickname");
+  showToast(`닉네임 "${targetNicknameToDelete}" 데이터가 성공적으로 삭제되었습니다.`, "info");
+  targetNicknameToDelete = "";
   checkSession();
-  showToast("로그아웃되었습니다.", "info");
+}
+
+// ==================== CUTE CONFIRM DIALOG HELPER ====================
+function showCuteConfirm(title, desc) {
+  return new Promise((resolve) => {
+    document.getElementById("delete-confirm-title").innerText = title;
+    document.getElementById("delete-confirm-desc").innerText = desc;
+    
+    const modal = document.getElementById("modal-cute-confirm");
+    modal.classList.add("active");
+    
+    const btnOk = document.getElementById("btn-delete-ok");
+    const btnCancel = document.getElementById("btn-delete-cancel");
+    
+    const handleOk = () => {
+      modal.classList.remove("active");
+      btnOk.removeEventListener("click", handleOk);
+      btnCancel.removeEventListener("click", handleCancel);
+      resolve(true);
+    };
+    
+    const handleCancel = () => {
+      modal.classList.remove("active");
+      btnOk.removeEventListener("click", handleOk);
+      btnCancel.removeEventListener("click", handleCancel);
+      resolve(false);
+    };
+    
+    btnOk.addEventListener("click", handleOk);
+    btnCancel.addEventListener("click", handleCancel);
+  });
 }
 
 // ==================== FIREBASE/MOCK SYNC & CRUD ====================
@@ -103,20 +223,17 @@ function startSync() {
   if (patternCardsUnsubscribe) patternCardsUnsubscribe();
 
   if (isFirebaseActive && db) {
-    // Firestore 실시간 동기화
     const mainColRef = collection(db, "users", nickname, "mainSentences");
     mainSentencesUnsubscribe = onSnapshot(mainColRef, (snapshot) => {
       mainSentences = snapshot.docs.map(docSnap => ({
         id: docSnap.id,
         ...docSnap.data()
       }));
-      // 생성일 내림차순 정렬
       mainSentences.sort((a, b) => new Date(parseDate(b.createdAt)) - new Date(parseDate(a.createdAt)));
       renderMainSentences();
       renderReviewSection();
     }, (error) => {
       console.error("Firestore mainSentences Sync Error:", error);
-      showToast("서버 동기화 실패. 보안 규칙 및 설정을 확인하세요.", "error");
     });
 
     const patternColRef = collection(db, "users", nickname, "patternCards");
@@ -131,7 +248,6 @@ function startSync() {
       console.error("Firestore patternCards Sync Error:", error);
     });
   } else {
-    // 임시 로컬 스토리지 동기화
     triggerLocalUpdate();
   }
 }
@@ -152,20 +268,28 @@ function triggerLocalUpdate() {
 }
 
 function parseDate(val) {
-  // Firebase Timestamp 또는 ISO String 처리
   if (val && val.toDate) {
     return val.toDate();
   }
   return val;
 }
 
+// 영어 첫 글자 대문자 변환 도구
+function capitalizeEnglish(text) {
+  if (!text) return "";
+  const trimmed = text.trim();
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
 // ---------------- CRUD API ----------------
 async function addMainSentence(ko, en) {
+  const formattedEn = capitalizeEnglish(en);
+  
   if (isFirebaseActive && db) {
     const colRef = collection(db, "users", nickname, "mainSentences");
     await addDoc(colRef, {
       korean: ko,
-      english: en,
+      english: formattedEn,
       createdAt: new Date()
     });
   } else {
@@ -174,23 +298,24 @@ async function addMainSentence(ko, en) {
     list.push({
       id: "mock_main_" + Date.now() + "_" + Math.floor(Math.random()*1000),
       korean: ko,
-      english: en,
+      english: formattedEn,
       createdAt: new Date().toISOString()
     });
     localStorage.setItem(mainKey, JSON.stringify(list));
     triggerLocalUpdate();
   }
-  showToast("대표 문장이 등록되었습니다.", "success");
 }
 
 async function addPatternCard(mainSentenceId, ko, en) {
+  const formattedEn = capitalizeEnglish(en);
+
   if (isFirebaseActive && db) {
     const colRef = collection(db, "users", nickname, "patternCards");
     await addDoc(colRef, {
       mainSentenceId: mainSentenceId,
       korean: ko,
-      english: en,
-      status: 'new', // new, success, fail
+      english: formattedEn,
+      status: 'new', 
       successCount: 0,
       lastSuccessAt: null,
       nextTestAt: null,
@@ -203,7 +328,7 @@ async function addPatternCard(mainSentenceId, ko, en) {
       id: "mock_pattern_" + Date.now() + "_" + Math.floor(Math.random()*1000),
       mainSentenceId: mainSentenceId,
       korean: ko,
-      english: en,
+      english: formattedEn,
       status: 'new',
       successCount: 0,
       lastSuccessAt: null,
@@ -213,17 +338,15 @@ async function addPatternCard(mainSentenceId, ko, en) {
     localStorage.setItem(patternKey, JSON.stringify(list));
     triggerLocalUpdate();
   }
-  showToast("패턴 카드가 등록되었습니다.", "success");
 }
 
 async function deleteMainSentence(id) {
-  if (confirm("이 대표 문장과 관련된 모든 패턴 카드가 함께 삭제됩니다. 정말 삭제하시겠습니까?")) {
+  const confirmed = await showCuteConfirm("대표 문장 삭제 확인", "이 대표 문장과 관련된 모든 패턴 카드가 함께 삭제됩니다. 정말 삭제하시겠습니까? 😢");
+  if (confirmed) {
     if (isFirebaseActive && db) {
-      // 대표 문장 삭제
       const docRef = doc(db, "users", nickname, "mainSentences", id);
       await deleteDoc(docRef);
 
-      // 하위 패턴 카드들 일괄 삭제
       const subCards = patternCards.filter(c => c.mainSentenceId === id);
       for (const card of subCards) {
         const subDocRef = doc(db, "users", nickname, "patternCards", card.id);
@@ -245,14 +368,15 @@ async function deleteMainSentence(id) {
     
     if (selectedMainSentenceId === id) {
       selectedMainSentenceId = null;
-      renderPatternCards();
+      closePatternPanel();
     }
-    showToast("대표 문장과 관련 패턴 카드가 삭제되었습니다.", "info");
+    showToast("삭제 완료! ✨", "info");
   }
 }
 
 async function deletePatternCard(id) {
-  if (confirm("이 패턴 카드를 삭제하시겠습니까?")) {
+  const confirmed = await showCuteConfirm("패턴 카드 삭제 확인", "이 패턴 카드를 암기장에서 삭제할까요? 😢");
+  if (confirmed) {
     if (isFirebaseActive && db) {
       const docRef = doc(db, "users", nickname, "patternCards", id);
       await deleteDoc(docRef);
@@ -263,7 +387,7 @@ async function deletePatternCard(id) {
       localStorage.setItem(patternKey, JSON.stringify(list));
       triggerLocalUpdate();
     }
-    showToast("패턴 카드가 삭제되었습니다.", "info");
+    showToast("삭제 완료! ✨", "info");
   }
 }
 
@@ -279,7 +403,6 @@ async function updatePatternCard(id, updates) {
       list[idx] = {
         ...list[idx],
         ...updates,
-        // 로컬스토리지 저장을 위해 Date 객체를 ISO String으로 변환
         lastSuccessAt: updates.lastSuccessAt instanceof Date ? updates.lastSuccessAt.toISOString() : updates.lastSuccessAt,
         nextTestAt: updates.nextTestAt instanceof Date ? updates.nextTestAt.toISOString() : updates.nextTestAt,
       };
@@ -291,7 +414,7 @@ async function updatePatternCard(id, updates) {
 
 // ==================== RENDERING UI ====================
 
-// 1. 대표 문장 카드 렌더링
+// 1. 대표 문장 카드 렌더링 (영어가 위에 크게 완전히 공개되어 보임, 한글이 밑에 작게)
 function renderMainSentences() {
   const container = document.getElementById("main-sentences-list");
   if (mainSentences.length === 0) {
@@ -312,9 +435,12 @@ function renderMainSentences() {
             <i data-lucide="trash-2"></i>
           </button>
         </div>
-        <div class="card-korean">${sentence.korean}</div>
         <div class="card-english-wrapper">
-          <div class="card-english blurred" id="en-${sentence.id}">${sentence.english}</div>
+          <div class="card-english-column">
+            <!-- 대표문장은 영어 블러(blurred) 처리 제외 -->
+            <div class="card-english">${sentence.english}</div>
+            <div class="card-korean">${sentence.korean}</div>
+          </div>
           <button class="btn-card-action btn-speak" data-text="${sentence.english}" title="발음 듣기">
             <i data-lucide="volume-2"></i>
           </button>
@@ -327,31 +453,22 @@ function renderMainSentences() {
   setupMainSentenceCardClicks();
 }
 
-// 2. 패턴 카드 렌더링
+// 2. 패턴 카드 렌더링 (우측/하단 슬라이드 오버 패널)
 function renderPatternCards() {
   const container = document.getElementById("pattern-cards-list");
-  const column = document.getElementById("pattern-column");
-  const hint = document.getElementById("pattern-select-hint");
-  const btnAdd = document.getElementById("btn-add-pattern");
+  const overlayPanel = document.getElementById("pattern-overlay-panel");
+  const overlayBackdrop = document.getElementById("pattern-overlay-backdrop");
 
   if (!selectedMainSentenceId) {
-    column.classList.add("disabled");
-    hint.style.display = "flex";
-    container.style.display = "none";
-    btnAdd.disabled = true;
+    closePatternPanel();
     return;
   }
-
-  column.classList.remove("disabled");
-  hint.style.display = "none";
-  container.style.display = "flex";
-  btnAdd.disabled = false;
 
   // 선택된 대표 문장 정보 로드
   const activeMain = mainSentences.find(s => s.id === selectedMainSentenceId);
   if (activeMain) {
     document.getElementById("pattern-column-title").innerHTML = `
-      <span class="emoji">💡</span> "${activeMain.korean}" 패턴 카드
+      <span class="emoji">💡</span> "${activeMain.english}"의 패턴 카드
     `;
   }
 
@@ -360,48 +477,68 @@ function renderPatternCards() {
   if (filteredCards.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
-        <p>선택한 대표 문장에 속한 패턴 카드가 없습니다.<br>상단의 "패턴 카드 추가" 버튼을 눌러 추가해 보세요!</p>
+        <p>선택한 대표 문장에 속한 패턴 카드가 없습니다.<br>새 패턴 카드를 추가해 보세요!</p>
       </div>`;
-    return;
+  } else {
+    container.innerHTML = filteredCards.map(card => {
+      let statusText = "신규";
+      let badgeClass = "badge-new";
+      if (card.status === 'success') {
+        statusText = `성공 ${card.successCount}회`;
+        badgeClass = "badge-success";
+      } else if (card.status === 'fail') {
+        statusText = "실패";
+        badgeClass = "badge-fail";
+      }
+
+      return `
+        <div class="sentence-card" id="card-${card.id}">
+          <div class="card-top">
+            <span class="card-badge ${badgeClass}">${statusText}</span>
+            <button class="btn-card-action btn-delete-pattern" data-id="${card.id}" title="삭제">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
+          <div class="card-english-wrapper">
+            <div class="card-english-column">
+              <!-- 패턴카드는 공부를 위해 탭하여 볼 수 있게 블러(blurred) 처리 지원 -->
+              <div class="card-english blurred" id="en-${card.id}">${card.english}</div>
+              <div class="card-korean">${card.korean}</div>
+            </div>
+            <button class="btn-card-action btn-speak" data-text="${card.english}" title="발음 듣기">
+              <i data-lucide="volume-2"></i>
+            </button>
+          </div>
+          <div class="card-controls">
+            <!-- 자가 채점용 성공/실패 버튼 상시 표시 (단, 복습 완료 후 대기 중인 경우는 제외) -->
+            <div class="self-assess-btn-group">
+              <button class="btn-assess btn-assess-success" data-id="${card.id}">
+                성공 👍
+              </button>
+              <button class="btn-assess btn-assess-fail" data-id="${card.id}">
+                실패 👎
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
   }
 
-  container.innerHTML = filteredCards.map(card => {
-    let statusText = "신규";
-    let badgeClass = "badge-new";
-    if (card.status === 'success') {
-      statusText = `성공 ${card.successCount}회`;
-      badgeClass = "badge-success";
-    } else if (card.status === 'fail') {
-      statusText = "실패";
-      badgeClass = "badge-fail";
-    }
-
-    return `
-      <div class="sentence-card" id="card-${card.id}">
-        <div class="card-top">
-          <span class="card-badge ${badgeClass}">${statusText}</span>
-          <button class="btn-card-action btn-delete-pattern" data-id="${card.id}" title="삭제">
-            <i data-lucide="trash-2"></i>
-          </button>
-        </div>
-        <div class="card-korean">${card.korean}</div>
-        <div class="card-english-wrapper">
-          <div class="card-english blurred" id="en-${card.id}">${card.english}</div>
-          <button class="btn-card-action btn-speak" data-text="${card.english}" title="발음 듣기">
-            <i data-lucide="volume-2"></i>
-          </button>
-        </div>
-        <div class="card-controls">
-          <button class="btn-card-control btn-game-play" data-id="${card.id}">
-            <i data-lucide="mic"></i> 테스트
-          </button>
-        </div>
-      </div>
-    `;
-  }).join("");
+  // 슬라이드 패널 활성화
+  overlayPanel.classList.add("active");
+  overlayBackdrop.classList.add("active");
 
   lucide.createIcons();
   setupPatternCardEvents();
+}
+
+function closePatternPanel() {
+  document.getElementById("pattern-overlay-panel").classList.remove("active");
+  document.getElementById("pattern-overlay-backdrop").classList.remove("active");
+  selectedMainSentenceId = null;
+  // 대표 문장 리스트의 액티브 상태 제거
+  document.querySelectorAll("#main-sentences-list .sentence-card").forEach(c => c.classList.remove("active"));
 }
 
 // 3. 복습 보관함 렌더링
@@ -422,24 +559,31 @@ function renderReviewSection() {
             <i data-lucide="trash-2"></i>
           </button>
         </div>
-        <div class="card-korean">${card.korean}</div>
         <div class="card-english-wrapper">
-          <div class="card-english blurred" id="en-${card.id}">${card.english}</div>
+          <div class="card-english-column">
+            <div class="card-english blurred" id="en-${card.id}">${card.english}</div>
+            <div class="card-korean">${card.korean}</div>
+          </div>
           <button class="btn-card-action btn-speak" data-text="${card.english}">
             <i data-lucide="volume-2"></i>
           </button>
         </div>
         <div class="card-controls">
-          <button class="btn-card-control btn-game-play btn-game-danger" data-id="${card.id}">
-            <i data-lucide="rotate-ccw"></i> 재테스트
-          </button>
+          <div class="self-assess-btn-group">
+            <button class="btn-assess btn-assess-success" data-id="${card.id}">
+              성공 👍
+            </button>
+            <button class="btn-assess btn-assess-fail" data-id="${card.id}">
+              실패 👎
+            </button>
+          </div>
         </div>
       </div>
     `).join("");
   }
 
   // 성공한 카드 (1회 ~ 6회 이상 단계)
-  const readyCardsCount = { val: 0 }; // 복습 가능한 카드 수 카운트용 객체 (레퍼런스 전달을 위해)
+  const readyCardsCount = { val: 0 };
   
   for (let i = 1; i <= 6; i++) {
     const stageContainer = document.getElementById(`success-stage-${i}`);
@@ -456,11 +600,26 @@ function renderReviewSection() {
       stageContainer.innerHTML = stageList.map(card => {
         const nextTestAt = parseDate(card.nextTestAt);
         const isReady = nextTestAt ? (new Date() >= new Date(nextTestAt)) : true;
-        const testDisabledAttr = isReady ? "" : "disabled";
         
         if (isReady) {
           readyCardsCount.val++;
         }
+
+        // 대기 중이면 시간 표시, 대기가 끝났으면 자가 채점 버튼(성공/실패) 활성화
+        const controlsHtml = isReady ? `
+          <div class="self-assess-btn-group">
+            <button class="btn-assess btn-assess-success" data-id="${card.id}">
+              성공 👍
+            </button>
+            <button class="btn-assess btn-assess-fail" data-id="${card.id}">
+              실패 👎
+            </button>
+          </div>
+        ` : `
+          <div class="countdown-timer-text" data-next-test-at="${nextTestAt ? new Date(nextTestAt).toISOString() : ''}">
+            ⏳ 계산 중...
+          </div>
+        `;
 
         return `
           <div class="sentence-card" id="card-${card.id}">
@@ -470,20 +629,17 @@ function renderReviewSection() {
                 <i data-lucide="trash-2"></i>
               </button>
             </div>
-            <div class="card-korean">${card.korean}</div>
             <div class="card-english-wrapper">
-              <div class="card-english blurred" id="en-${card.id}">${card.english}</div>
+              <div class="card-english-column">
+                <div class="card-english blurred" id="en-${card.id}">${card.english}</div>
+                <div class="card-korean">${card.korean}</div>
+              </div>
               <button class="btn-card-action btn-speak" data-text="${card.english}">
                 <i data-lucide="volume-2"></i>
               </button>
             </div>
             <div class="card-controls">
-              <div class="countdown-timer-text" data-next-test-at="${nextTestAt ? new Date(nextTestAt).toISOString() : ''}">
-                ⏳ 계산 중...
-              </div>
-              <button class="btn-card-control btn-game-play" data-id="${card.id}" ${testDisabledAttr}>
-                <i data-lucide="mic"></i> 복습
-              </button>
+              ${controlsHtml}
             </div>
           </div>
         `;
@@ -491,7 +647,6 @@ function renderReviewSection() {
     }
   }
 
-  // 상단 탭 복습 배지 카운트 업데이트 (실패 카드 + 대기 끝난 성공 카드)
   const totalReviewNeed = failedList.length + readyCardsCount.val;
   const badge = document.getElementById("review-count-badge");
   badge.innerText = totalReviewNeed;
@@ -501,7 +656,7 @@ function renderReviewSection() {
   setupPatternCardEvents();
 }
 
-// 4. 타이머 카운트다운 로직 (실시간)
+// 4. 타이머 카운트다운 로직
 let countdownTimer = null;
 function startCountdownTimer() {
   if (countdownTimer) clearInterval(countdownTimer);
@@ -515,17 +670,10 @@ function startCountdownTimer() {
       const now = new Date();
       const diff = targetDate - now;
 
-      const cardElement = timer.closest(".sentence-card");
-      const testBtn = cardElement ? cardElement.querySelector(".btn-game-play") : null;
-
       if (diff <= 0) {
-        timer.className = "countdown-timer-text ready";
-        timer.innerHTML = "⭐ 테스트 가능!";
-        if (testBtn) testBtn.disabled = false;
+        // 타이머가 만료되면 카드 섹션 리렌더링하여 자가 채점 버튼 활성화
+        renderReviewSection();
       } else {
-        timer.className = "countdown-timer-text";
-        if (testBtn) testBtn.disabled = true;
-
         const seconds = Math.floor((diff / 1000) % 60);
         const minutes = Math.floor((diff / (1000 * 60)) % 60);
         const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
@@ -551,27 +699,27 @@ function calculateNextTestTime(successCount, isSpeedy) {
   let msToAdd = 0;
 
   if (isSpeedy) {
-    // 가속 테스트 모드: 10초, 30초, 1분, 2분, 5분, 10분
+    // 가속 복습 주기: 10초, 30초, 1분, 2분, 5분, 10분
     const speedyIntervals = [
-      10 * 1000,          // 1회: 10초
-      30 * 1000,          // 2회: 30초
-      60 * 1000,          // 3회: 1분
-      120 * 1000,         // 4회: 2분
-      300 * 1000,         // 5회: 5분
-      600 * 1000          // 6회 이상: 10분
+      10 * 1000,
+      30 * 1000,
+      60 * 1000,
+      120 * 1000,
+      300 * 1000,
+      600 * 1000
     ];
     const idx = Math.min(successCount - 1, speedyIntervals.length - 1);
     msToAdd = speedyIntervals[idx];
   } else {
-    // 실서비스 모드: 2주, 1달, 3달, 6달, 1년, 2년
+    // 실제 주기: 2주, 1달, 3달, 6달, 1년, 2년
     const DAY = 24 * 60 * 60 * 1000;
     const intervals = [
-      14 * DAY,           // 1회: 2주
-      30 * DAY,           // 2회: 1달
-      90 * DAY,           // 3회: 3달
-      180 * DAY,          // 4회: 6달
-      365 * DAY,          // 5회: 1년
-      730 * DAY           // 6회 이상: 2년
+      14 * DAY,
+      30 * DAY,
+      90 * DAY,
+      180 * DAY,
+      365 * DAY,
+      730 * DAY
     ];
     const idx = Math.min(successCount - 1, intervals.length - 1);
     msToAdd = intervals[idx];
@@ -580,22 +728,54 @@ function calculateNextTestTime(successCount, isSpeedy) {
   return new Date(now.getTime() + msToAdd);
 }
 
+// ==================== self-assessment control ====================
+async function handleSelfAssessment(cardId, outcome) {
+  const card = patternCards.find(c => c.id === cardId);
+  if (!card) return;
+
+  const isSpeedy = document.getElementById("toggle-speedy-mode").checked;
+
+  if (outcome === 'success') {
+    const newSuccessCount = (card.successCount || 0) + 1;
+    const nextTest = calculateNextTestTime(newSuccessCount, isSpeedy);
+
+    await updatePatternCard(card.id, {
+      status: 'success',
+      successCount: newSuccessCount,
+      lastSuccessAt: new Date(),
+      nextTestAt: nextTest
+    });
+    showToast(`성공! 다음 복습 일정으로 이동합니다. (성공 ${newSuccessCount}회차)`, "success");
+  } else {
+    // 실패 시 0회 성공으로 리셋 후 실패로 상태 변환
+    await updatePatternCard(card.id, {
+      status: 'fail',
+      successCount: 0,
+      lastSuccessAt: null,
+      nextTestAt: null
+    });
+    showToast("실패로 처리되어 복습 보관함의 실패 섹션으로 이동했습니다.", "error");
+  }
+
+  // 만약 현재 패턴 패널에 떠 있다면 패턴 카드 리스트 갱신
+  if (selectedMainSentenceId) {
+    renderPatternCards();
+  }
+}
+
 // ==================== TTS & STT (WEB SPEECH API) ====================
 
-// 1. 영어 텍스트 발음해주기 (TTS)
+// 영어 발음 재생 (TTS)
 function playTTS(text) {
   if (!('speechSynthesis' in window)) {
     showToast("이 브라우저는 음성 합성을 지원하지 않습니다.", "error");
     return;
   }
-  
-  // 이전 음성 중단
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "en-US";
 
-  // 영어 원어민 음성 설정 시도
   const voices = window.speechSynthesis.getVoices();
   const enVoice = voices.find(v => v.lang.startsWith("en-US") && v.name.includes("Google")) ||
                   voices.find(v => v.lang.startsWith("en-US")) ||
@@ -607,7 +787,7 @@ function playTTS(text) {
   window.speechSynthesis.speak(utterance);
 }
 
-// 2. 음성 입력받기 (STT)
+// 음성 입력받기 (STT)
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
 
@@ -645,7 +825,10 @@ function startInputVoice(targetInputId, lang = "ko-KR") {
   };
 
   recognition.onresult = (event) => {
-    const text = event.results[0][0].transcript;
+    let text = event.results[0][0].transcript;
+    if (lang.startsWith("en")) {
+      text = capitalizeEnglish(text);
+    }
     document.getElementById(targetInputId).value = text;
     showToast(`음성 인식 성공: "${text}"`, "success");
   };
@@ -663,207 +846,26 @@ function startInputVoice(targetInputId, lang = "ko-KR") {
   recognition.start();
 }
 
-// 3. 게임 모드 음성 감지
-let gameRecognition = null;
-if (SpeechRecognition) {
-  gameRecognition = new SpeechRecognition();
-  gameRecognition.continuous = false;
-  gameRecognition.interimResults = false;
-  gameRecognition.lang = "en-US";
-}
-
-let isGameRecording = false;
-let gameSpeechResultText = "";
-let currentTestingCard = null;
-
-function handleGameVoiceStart() {
-  if (!gameRecognition) {
-    showToast("이 브라우저에서는 음성 인식을 지원하지 않습니다.", "error");
-    return;
-  }
-
-  if (isGameRecording) {
-    gameRecognition.stop();
-    return;
-  }
-
-  gameRecognition.onstart = () => {
-    isGameRecording = true;
-    document.getElementById("btn-game-mic").classList.add("recording");
-    document.getElementById("game-wave").style.display = "flex";
-    document.getElementById("game-mic-instruction").innerText = "마이크에 대고 문장을 또박또박 읽어주세요! 🎙️";
-    
-    const char = document.getElementById("cute-character-emoji");
-    char.innerText = "🐰"; // 귀여운 귀 쫑긋 토끼
-    char.classList.add("talking");
-  };
-
-  gameRecognition.onresult = (event) => {
-    gameSpeechResultText = event.results[0][0].transcript;
-    evaluateGameAttempt(gameSpeechResultText);
-  };
-
-  gameRecognition.onerror = (e) => {
-    console.error("Game STT error:", e);
-    showToast("목소리가 잘 들리지 않았어요. 다시 한번 마이크를 누르고 말씀해 주세요.", "error");
-    document.getElementById("cute-character-emoji").innerText = "🧸";
-  };
-
-  gameRecognition.onend = () => {
-    isGameRecording = false;
-    document.getElementById("btn-game-mic").classList.remove("recording");
-    document.getElementById("game-wave").style.display = "none";
-    document.getElementById("cute-character-emoji").classList.remove("talking");
-  };
-
-  gameRecognition.start();
-}
-
-// 영어 정밀 가림 처리 해제 및 소문자 정규화 매칭
-function evaluateGameAttempt(speechText) {
-  const targetText = currentTestingCard.english;
-  
-  const cleanSpeech = normalizeSentence(speechText);
-  const cleanTarget = normalizeSentence(targetText);
-
-  const isSuccess = cleanSpeech === cleanTarget;
-
-  const resultContainer = document.getElementById("game-result-container");
-  const resultBadge = document.getElementById("game-result-badge");
-  const userSpeechVal = document.getElementById("game-user-speech");
-  const actualEnglishVal = document.getElementById("game-actual-english");
-  const char = document.getElementById("cute-character-emoji");
-
-  userSpeechVal.innerText = `"${speechText}"`;
-  actualEnglishVal.innerText = `"${targetText}"`;
-  resultContainer.style.display = "block";
-
-  if (isSuccess) {
-    resultContainer.className = "game-result-container success";
-    resultBadge.innerText = "성공 🎉";
-    char.innerText = "😸"; // 신난 야옹이
-    currentTestingCard.gameOutcome = 'success';
-    document.getElementById("btn-game-confirm").style.display = "inline-flex";
-    document.getElementById("btn-game-retry").style.display = "none";
-    showToast("완벽해요! 성공하셨습니다.", "success");
-  } else {
-    resultContainer.className = "game-result-container fail";
-    resultBadge.innerText = "실패 😢";
-    char.innerText = "😿"; // 시무룩 야옹이
-    currentTestingCard.gameOutcome = 'fail';
-    document.getElementById("btn-game-retry").style.display = "inline-flex";
-    document.getElementById("btn-game-confirm").style.display = "inline-flex";
-    showToast("아쉽네요! 발음이 정답과 맞지 않습니다.", "error");
-  }
-}
-
-// 문장 정규화 (대소문자 무시, 쉼표, 온점, 물음표 등 제거)
-function normalizeSentence(text) {
-  if (!text) return "";
-  return text.toLowerCase()
-    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-async function handleGameFinish() {
-  if (!currentTestingCard) return;
-
-  const isSpeedy = document.getElementById("toggle-speedy-mode").checked;
-
-  if (currentTestingCard.gameOutcome === 'success') {
-    const newSuccessCount = (currentTestingCard.successCount || 0) + 1;
-    const nextTest = calculateNextTestTime(newSuccessCount, isSpeedy);
-
-    await updatePatternCard(currentTestingCard.id, {
-      status: 'success',
-      successCount: newSuccessCount,
-      lastSuccessAt: new Date(),
-      nextTestAt: nextTest
-    });
-    
-  } else {
-    // 실패 시 0회 성공 상태로 복귀 및 실패 처리
-    await updatePatternCard(currentTestingCard.id, {
-      status: 'fail',
-      successCount: 0,
-      lastSuccessAt: null,
-      nextTestAt: null
-    });
-  }
-
-  closeModal("modal-game");
-}
-
 // ==================== EVENT LISTENERS SETUP ====================
 function setupEventListeners() {
-  // 1. 닉네임 입력 이벤트
-  document.getElementById("btn-login").addEventListener("click", handleLogin);
+  // 1. 닉네임 입력 후 엔터 쳤을 때
   document.getElementById("input-nickname").addEventListener("keypress", (e) => {
-    if (e.key === "Enter") handleLogin();
+    if (e.key === "Enter") handleAddNickname();
   });
+  
+  // 닉네임 추가 플러스 단추 클릭
+  document.getElementById("btn-add-nickname-submit").addEventListener("click", handleAddNickname);
 
   // 2. 로그아웃
   document.getElementById("btn-logout").addEventListener("click", handleLogout);
 
-  // 3. Firebase Config 저장
-  document.getElementById("btn-firebase-config").addEventListener("click", () => {
-    const config = localStorage.getItem("firebase_config");
-    if (config) {
-      try {
-        document.getElementById("textarea-config").value = JSON.stringify(JSON.parse(config), null, 2);
-      } catch (e) {
-        document.getElementById("textarea-config").value = config;
-      }
-    } else {
-      document.getElementById("textarea-config").value = "";
-    }
-    openModal("modal-firebase");
-  });
-
-  document.getElementById("btn-save-config").addEventListener("click", () => {
-    const configVal = document.getElementById("textarea-config").value.trim();
-    if (configVal === "") {
-      localStorage.removeItem("firebase_config");
-      showToast("설정이 초기화되었습니다. 로컬 모드로 리로딩합니다.", "warning");
-      setTimeout(() => window.location.reload(), 1200);
-      return;
-    }
-
-    try {
-      // 복사-붙여넣기 유연성 제공: JavaScript Object 형태도 파싱 가능하게 변환
-      let parsed = {};
-      if (configVal.includes("apiKey")) {
-        let content = configVal;
-        // 중괄호 바깥 제거 시도
-        const start = content.indexOf("{");
-        const end = content.lastIndexOf("}");
-        if (start !== -1 && end !== -1) {
-          content = content.substring(start, end + 1);
-        }
-        // 안전한 객체 파싱 (Function 생성자 활용)
-        parsed = new Function(`return ${content}`)();
-      } else {
-        parsed = JSON.parse(configVal);
-      }
-
-      if (!parsed.apiKey || !parsed.projectId) {
-        throw new Error("필수 키(apiKey, projectId) 누락");
-      }
-
-      localStorage.setItem("firebase_config", JSON.stringify(parsed));
-      showToast("설정이 저장되었습니다! 실시간 연동을 위해 화면을 새로고침합니다.", "success");
-      closeModal("modal-firebase");
-      setTimeout(() => window.location.reload(), 1200);
-    } catch (e) {
-      console.error(e);
-      showToast("Firebase Config 형식이 올바르지 않습니다. 복사한 값을 그대로 붙여넣어 주세요.", "error");
-    }
-  });
-
-  // Firebase Config 모달 닫기
-  document.getElementById("btn-close-firebase-modal").addEventListener("click", () => closeModal("modal-firebase"));
-  document.getElementById("btn-cancel-firebase-modal").addEventListener("click", () => closeModal("modal-firebase"));
+  // 3. 닉네임 삭제 확인용 입력 텍스트 리스너
+  document.getElementById("input-delete-nickname-confirm").addEventListener("input", handleNicknameDeleteConfirmText);
+  document.getElementById("btn-confirm-delete-nickname").addEventListener("click", executeNicknameDeletion);
+  
+  // 닉네임 삭제 취소 바인딩
+  document.getElementById("btn-close-delete-nickname-modal").addEventListener("click", () => closeModal("modal-delete-nickname"));
+  document.getElementById("btn-cancel-delete-nickname-modal").addEventListener("click", () => closeModal("modal-delete-nickname"));
 
   // 4. 대표 문장 모달 컨트롤
   document.getElementById("btn-add-main").addEventListener("click", () => {
@@ -888,7 +890,7 @@ function setupEventListeners() {
   document.getElementById("btn-add-pattern").addEventListener("click", () => {
     const activeMain = mainSentences.find(s => s.id === selectedMainSentenceId);
     if (!activeMain) return;
-    document.getElementById("add-pattern-parent-desc").innerText = `대표 문장: "${activeMain.korean}"`;
+    document.getElementById("add-pattern-parent-desc").innerText = `대표 문장: "${activeMain.english}"`;
     document.getElementById("pattern-ko").value = "";
     document.getElementById("pattern-en").value = "";
     openModal("modal-add-pattern");
@@ -915,25 +917,7 @@ function setupEventListeners() {
     });
   });
 
-  // 7. 게임 모드 이벤트 바인딩
-  document.getElementById("btn-game-mic").addEventListener("click", handleGameVoiceStart);
-  document.getElementById("btn-game-retry").addEventListener("click", () => {
-    // Reset Game Attempt UI
-    document.getElementById("game-result-container").style.display = "none";
-    document.getElementById("btn-game-retry").style.display = "none";
-    document.getElementById("btn-game-confirm").style.display = "none";
-    document.getElementById("cute-character-emoji").innerText = "🧸";
-    handleGameVoiceStart();
-  });
-  document.getElementById("btn-game-confirm").addEventListener("click", handleGameFinish);
-  document.getElementById("btn-close-game-modal").addEventListener("click", () => closeModal("modal-game"));
-  document.getElementById("btn-cancel-game-modal").addEventListener("click", () => closeModal("modal-game"));
-  document.getElementById("btn-game-reveal").addEventListener("click", () => {
-    document.getElementById("game-english-target").classList.remove("hidden");
-    document.getElementById("btn-game-reveal").style.display = "none";
-  });
-
-  // 8. 탭 전환 처리
+  // 7. 탭 전환 처리
   document.querySelectorAll(".tab-navigation .tab-button").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".tab-navigation .tab-button").forEach(b => b.classList.remove("active"));
@@ -942,67 +926,63 @@ function setupEventListeners() {
       btn.classList.add("active");
       const tabId = btn.dataset.tab;
       document.getElementById(tabId).classList.add("active");
+
+      // 다른 탭으로 이동할 때 우측 패턴 패널이 열려있다면 닫아줍니다.
+      if (tabId !== "tab-deck") {
+        closePatternPanel();
+      }
     });
   });
 
-  // 9. 가속 모드 변경 시 즉시 렌더링 갱신
+  // 8. 가속 모드 변경 시 즉시 렌더링 갱신
   document.getElementById("toggle-speedy-mode").addEventListener("change", () => {
     renderReviewSection();
     showToast(document.getElementById("toggle-speedy-mode").checked ? 
       "테스트용 가속 복습 모드가 활성화되었습니다! ⚡" : "복습 모드가 실서비스 모드로 복귀했습니다.", "info");
   });
+
+  // 9. 패턴 패널 닫기 버튼 및 뒷배경 클릭 처리
+  document.getElementById("btn-close-pattern-panel").addEventListener("click", closePatternPanel);
+  document.getElementById("pattern-overlay-backdrop").addEventListener("click", closePatternPanel);
 }
 
 // ---------------- CARD INTERACTIONS ----------------
 function setupMainSentenceCardClicks() {
   document.querySelectorAll("#main-sentences-list .sentence-card").forEach(card => {
-    // 카드 클릭시 패턴 선택 처리 (삭제 버튼 제외)
     card.addEventListener("click", (e) => {
       if (e.target.closest(".btn-delete") || e.target.closest(".btn-speak")) {
         return;
       }
       const id = card.dataset.id;
       
-      // 토글 방식
       if (selectedMainSentenceId === id) {
-        selectedMainSentenceId = null;
+        closePatternPanel();
       } else {
         selectedMainSentenceId = id;
-      }
-      
-      document.querySelectorAll("#main-sentences-list .sentence-card").forEach(c => c.classList.remove("active"));
-      if (selectedMainSentenceId) {
+        document.querySelectorAll("#main-sentences-list .sentence-card").forEach(c => c.classList.remove("active"));
         card.classList.add("active");
+        renderPatternCards();
       }
-      
-      renderPatternCards();
     });
 
-    // 삭제 버튼 바인딩
+    // 대표문장 삭제 버튼
     card.querySelector(".btn-delete").addEventListener("click", (e) => {
       e.stopPropagation();
       const id = e.currentTarget.dataset.id;
       deleteMainSentence(id);
     });
 
-    // TTS 버튼 바인딩
+    // 대표문장 TTS 버튼
     card.querySelector(".btn-speak").addEventListener("click", (e) => {
       e.stopPropagation();
       const text = e.currentTarget.dataset.text;
       playTTS(text);
     });
-
-    // 영어 글자 클릭시 가림 해제 토글
-    const enText = card.querySelector(".card-english");
-    enText.addEventListener("click", (e) => {
-      e.stopPropagation();
-      enText.classList.toggle("blurred");
-    });
   });
 }
 
 function setupPatternCardEvents() {
-  // 패턴 삭제
+  // 패턴 카드 삭제
   document.querySelectorAll(".btn-delete-pattern").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -1028,49 +1008,36 @@ function setupPatternCardEvents() {
     });
   });
 
-  // 테스트 게임 시작
-  document.querySelectorAll(".btn-game-play").forEach(btn => {
+  // 자가 채점 성공/실패 버튼 클릭 바인딩
+  document.querySelectorAll(".btn-assess-success").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      const id = e.currentTarget.dataset.id;
-      const card = patternCards.find(c => c.id === id);
-      if (card) {
-        startGameTest(card);
-      }
+      const id = btn.dataset.id;
+      handleSelfAssessment(id, 'success');
+    });
+  });
+
+  document.querySelectorAll(".btn-assess-fail").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      handleSelfAssessment(id, 'fail');
     });
   });
 }
 
-function startGameTest(card) {
-  currentTestingCard = card;
-  gameSpeechResultText = "";
-
-  // UI 세팅
-  let levelText = "신규 학습";
-  if (card.status === 'success') levelText = `복습 (${card.successCount}회 성공)`;
-  if (card.status === 'fail') levelText = "재도전 (실패 카드)";
-
-  document.getElementById("game-card-stage").innerText = levelText;
-  document.getElementById("game-korean-text").innerText = card.korean;
-  document.getElementById("game-english-target").innerText = card.english;
-  document.getElementById("game-english-target").classList.add("hidden");
-  document.getElementById("btn-game-reveal").style.display = "inline-flex";
-
-  // 상태 초기화
-  document.getElementById("game-result-container").style.display = "none";
-  document.getElementById("btn-game-retry").style.display = "none";
-  document.getElementById("btn-game-confirm").style.display = "none";
+// 로그아웃
+function handleLogout() {
+  localStorage.removeItem("nickname");
+  if (mainSentencesUnsubscribe) mainSentencesUnsubscribe();
+  if (patternCardsUnsubscribe) patternCardsUnsubscribe();
   
-  const micBtn = document.getElementById("btn-game-mic");
-  micBtn.className = "btn-game-mic";
-  document.getElementById("game-mic-instruction").innerText = "마이크 버튼을 클릭하고 영어 문장을 읽어주세요!";
-  document.getElementById("game-wave").style.display = "none";
-
-  const char = document.getElementById("cute-character-emoji");
-  char.className = "cute-character";
-  char.innerText = "🧸";
-
-  openModal("modal-game");
+  selectedMainSentenceId = null;
+  mainSentences = [];
+  patternCards = [];
+  
+  checkSession();
+  showToast("로그아웃되었습니다.", "info");
 }
 
 // ==================== COMMON UI MODALS & TOASTS ====================
@@ -1080,13 +1047,8 @@ function openModal(id) {
 
 function closeModal(id) {
   document.getElementById(id).classList.remove("active");
-  
-  // 만약 음성인식 진행 중이면 일시중지
   if (isInputRecording && recognition) {
     recognition.stop();
-  }
-  if (isGameRecording && gameRecognition) {
-    gameRecognition.stop();
   }
 }
 
@@ -1108,7 +1070,6 @@ function showToast(message, type = "info") {
   
   lucide.createIcons();
 
-  // 3초 후 자동 제거
   setTimeout(() => {
     toast.remove();
   }, 3000);
