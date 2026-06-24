@@ -58,6 +58,11 @@
             <i data-lucide="plus"></i>
           </button>
         </div>
+
+        <!-- 닉네임이 없을 때만 동적으로 노출될 로그인 입장 단추 -->
+        <button id="btn-login" class="btn btn-primary btn-block" style="margin-top: 16px; display: none;">
+          암기장 입장하기 🌸
+        </button>
       </div>
     </main>
 
@@ -166,32 +171,30 @@
         </div>
       </section>
 
+      <!-- 대표 문장 클릭 시 우측에서 슬라이드 오버되는 패턴 카드 레이어 -->
+      <!-- 💡 main-view 내부로 이동하여 로그인 화면에서는 원천적으로 숨겨지도록 수정 완료 -->
+      <div class="pattern-overlay-backdrop" id="pattern-overlay-backdrop"></div>
+      <div class="pattern-overlay-panel" id="pattern-overlay-panel">
+        <div class="panel-header">
+          <h3 id="pattern-column-title"><span class="emoji">💡</span> 비슷한 패턴 카드</h3>
+          <button class="btn-panel-close" id="btn-close-pattern-panel">&times;</button>
+        </div>
+        
+        <div class="panel-body">
+          <div class="panel-action-bar">
+            <button id="btn-add-pattern" class="btn btn-primary btn-block btn-sm">
+              <i data-lucide="plus"></i> 새 패턴 카드 추가
+            </button>
+          </div>
+          <div class="sentences-list-container" id="pattern-cards-list">
+            <!-- 패턴 카드가 동적으로 로드되는 곳 -->
+          </div>
+        </div>
+      </div>
+
     </main>
 
   </div> <!-- /app-container -->
-
-
-  <!-- ==================== FLOATING OVERLAYS ==================== -->
-
-  <!-- 대표 문장 클릭 시 우측/하단에서 슬라이드 오버되는 패턴 카드 레이어 -->
-  <div class="pattern-overlay-backdrop" id="pattern-overlay-backdrop"></div>
-  <div class="pattern-overlay-panel" id="pattern-overlay-panel">
-    <div class="panel-header">
-      <h3 id="pattern-column-title"><span class="emoji">💡</span> 비슷한 패턴 카드</h3>
-      <button class="btn-panel-close" id="btn-close-pattern-panel">&times;</button>
-    </div>
-    
-    <div class="panel-body">
-      <div class="panel-action-bar">
-        <button id="btn-add-pattern" class="btn btn-primary btn-block btn-sm">
-          <i data-lucide="plus"></i> 새 패턴 카드 추가
-        </button>
-      </div>
-      <div class="sentences-list-container" id="pattern-cards-list">
-        <!-- 패턴 카드가 동적으로 로드되는 곳 -->
-      </div>
-    </div>
-  </div>
 
 
   <!-- ==================== MODALS & DIALOGS ==================== -->

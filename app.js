@@ -80,11 +80,15 @@ function checkSession() {
 function renderNicknameList() {
   const listContainer = document.getElementById("nickname-list");
   const nicknames = JSON.parse(localStorage.getItem("all_nicknames") || "[]");
+  const loginBtn = document.getElementById("btn-login");
 
   if (nicknames.length === 0) {
     listContainer.innerHTML = `<div class="empty-state-small">등록된 닉네임이 없습니다. 새 닉네임을 적어 추가해 주세요! 🧸</div>`;
+    if (loginBtn) loginBtn.style.display = "block";
     return;
   }
+
+  if (loginBtn) loginBtn.style.display = "none";
 
   listContainer.innerHTML = nicknames.map(nick => `
     <div class="nickname-item-card" data-nick="${nick}">
@@ -855,6 +859,12 @@ function setupEventListeners() {
   
   // 닉네임 추가 플러스 단추 클릭
   document.getElementById("btn-add-nickname-submit").addEventListener("click", handleAddNickname);
+
+  // 닉네임 입장하기 단추 클릭 (닉네임 없을 때만 노출)
+  const loginBtn = document.getElementById("btn-login");
+  if (loginBtn) {
+    loginBtn.addEventListener("click", handleAddNickname);
+  }
 
   // 2. 로그아웃
   document.getElementById("btn-logout").addEventListener("click", handleLogout);
