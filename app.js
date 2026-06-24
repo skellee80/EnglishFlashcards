@@ -81,6 +81,7 @@ function renderNicknameList() {
   const listContainer = document.getElementById("nickname-list");
   const nicknames = JSON.parse(localStorage.getItem("all_nicknames") || "[]");
   const loginBtn = document.getElementById("btn-login");
+  const inputVal = document.getElementById("input-nickname").value.trim();
 
   if (nicknames.length === 0) {
     listContainer.innerHTML = `<div class="empty-state-small">등록된 닉네임이 없습니다. 새 닉네임을 적어 추가해 주세요! 🧸</div>`;
@@ -88,7 +89,10 @@ function renderNicknameList() {
     return;
   }
 
-  if (loginBtn) loginBtn.style.display = "none";
+  // 닉네임이 있더라도 입력 필드에 글자가 입력되어 있으면 입장하기 버튼 노출
+  if (loginBtn) {
+    loginBtn.style.display = inputVal !== "" ? "block" : "none";
+  }
 
   listContainer.innerHTML = nicknames.map(nick => `
     <div class="nickname-item-card" data-nick="${nick}">
@@ -855,6 +859,19 @@ function setupEventListeners() {
   // 1. 닉네임 입력 후 엔터 쳤을 때
   document.getElementById("input-nickname").addEventListener("keypress", (e) => {
     if (e.key === "Enter") handleAddNickname();
+  });
+  
+  // 닉네임 입력란에 타핑 시 실시간으로 입장하기 버튼 노출 여부 제어
+  document.getElementById("input-nickname").addEventListener("input", (e) => {
+    const value = e.target.value.trim();
+    const loginBtn = document.getElementById("btn-login");
+    const nicknames = JSON.parse(localStorage.getItem("all_nicknames") || "[]");
+    
+    if (nicknames.length === 0 || value !== "") {
+      if (loginBtn) loginBtn.style.display = "block";
+    } else {
+      if (loginBtn) loginBtn.style.display = "none";
+    }
   });
   
   // 닉네임 추가 플러스 단추 클릭
