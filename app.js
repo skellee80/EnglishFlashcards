@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   
   // A. firebase-config.json 파일에서 로드 시도
   try {
-    const response = await fetch('./firebase-config.json');
+    const response = await fetch(`./firebase-config.json?cb=${Date.now()}`, { cache: 'no-store' });
     if (response.ok) {
       const config = await response.json();
       if (config && config.apiKey && config.apiKey !== "YOUR_API_KEY") {
@@ -115,6 +115,7 @@ function startNicknameSync() {
       renderNicknameList();
     }, (error) => {
       console.error("Firestore users/nicknames Sync Error:", error);
+      showToast("닉네임 목록 서버 동기화에 실패했습니다. (파이어베이스 보안 규칙을 확인하세요) ⚠️", "error");
       fallbackLocalNicknames();
     });
   } else {
@@ -202,7 +203,8 @@ async function handleAddNickname() {
       });
     } catch (error) {
       console.error("Failed to add user to Firestore:", error);
-      showToast("서버에 사용자를 등록하지 못했습니다.", "error");
+      showToast("서버에 사용자를 등록하지 못했습니다. (보안 규칙 또는 네트워크 확인 필요) ⚠️", "error");
+      return; // Firestore 등록에 실패하면 로컬 세션 진행을 중단합니다.
     }
   }
 
@@ -330,6 +332,7 @@ function startSync() {
       renderReviewSection();
     }, (error) => {
       console.error("Firestore mainSentences Sync Error:", error);
+      showToast("대표 문장 서버 동기화에 실패했습니다. (보안 규칙 확인 필요) ⚠️", "error");
     });
 
     const patternColRef = collection(db, "users", nickname, "patternCards");
@@ -342,6 +345,7 @@ function startSync() {
       renderReviewSection();
     }, (error) => {
       console.error("Firestore patternCards Sync Error:", error);
+      showToast("패턴 카드 서버 동기화에 실패했습니다. (보안 규칙 확인 필요) ⚠️", "error");
     });
   } else {
     triggerLocalUpdate();
