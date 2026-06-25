@@ -1,7 +1,7 @@
 // Import Firebase SDK (from ESM CDN)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { 
-  getFirestore, doc, collection, addDoc, updateDoc, deleteDoc, onSnapshot 
+  getFirestore, doc, collection, addDoc, updateDoc, deleteDoc, onSnapshot, setDoc, getDocs
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // ==================== STATE MANAGEMENT ====================
@@ -15,21 +15,43 @@ let patternCards = [];
 
 let mainSentencesUnsubscribe = null;
 let patternCardsUnsubscribe = null;
+let nicknamesUnsubscribe = null;
+let allNicknames = [];
 
 // 닉네임 삭제 확인 타겟
 let targetNicknameToDelete = "";
 
 // ==================== INITIALIZATION ====================
-document.addEventListener("DOMContentLoaded", () => {
-  // 1. Firebase Config 로드 및 초기화 (암묵적 백그라운드 초기화)
+document.addEventListener("DOMContentLoaded", async () => {
+  // 1. Firebase Config 로드 및 초기화
   let firebaseConfig = null;
-  const storedConfig = localStorage.getItem("firebase_config");
   
-  if (storedConfig) {
-    try {
-      firebaseConfig = JSON.parse(storedConfig);
-    } catch (e) {
-      console.error("Stored Firebase configuration is invalid:", e);
+  // A. firebase-config.json 파일에서 로드 시도
+  try {
+    const response = await fetch('./firebase-config.json');
+    if (response.ok) {
+      const config = await response.json();
+      if (config && config.apiKey && config.apiKey !== "YOUR_API_KEY") {
+        firebaseConfig = config;
+        console.log("Loaded Firebase configuration from firebase-config.json successfully.");
+      } else {
+        console.log("firebase-config.json contains placeholder values. Checking localStorage fallback...");
+      }
+    }
+  } catch (e) {
+    console.log("No firebase-config.json found or failed to parse. Checking localStorage fallback...");
+  }
+
+  // B. 로컬 파일 로드 실패 시 localStorage에서 로드 시도
+  if (!firebaseConfig) {
+    const storedConfig = localStorage.getItem("firebase_config");
+    if (storedConfig) {
+      try {
+        firebaseConfig = JSON.parse(storedConfig);
+        console.log("Loaded Firebase configuration from localStorage.");
+      } catch (e) {
+        console.error("Stored Firebase configuration is invalid:", e);
+      }
     }
   }
 
@@ -45,6 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
       isFirebaseActive = false;
     }
   } else {
+    console.log("No Firebase configuration available. Switched to Mock mode.");
     isFirebaseActive = false;
   }
 
@@ -52,6 +75,9 @@ document.addEventListener("DOMContentLoaded", () => {
   checkSession();
   setupEventListeners();
   startCountdownTimer();
+  
+  // 3. Firestore에서 닉네임 실시간 동기화 시작 (Firebase 활성화 상태인 경우)
+  startNicknameSync();
 });
 
 // ==================== NICKNAME LISTS & SESSION ====================
@@ -76,10 +102,35 @@ function checkSession() {
   }
 }
 
+// 닉네임 실시간 동기화 시작 (Firestore users 컬렉션 감지)
+function startNicknameSync() {
+  if (nicknamesUnsubscribe) nicknamesUnsubscribe();
+
+  if (isFirebaseActive && db) {
+    const usersColRef = collection(db, "users");
+    nicknamesUnsubscribe = onSnapshot(usersColRef, (snapshot) => {
+      allNicknames = snapshot.docs.map(docSnap => docSnap.id);
+      // 로컬 스토리지도 백업용으로 업데이트
+      localStorage.setItem("all_nicknames", JSON.stringify(allNicknames));
+      renderNicknameList();
+    }, (error) => {
+      console.error("Firestore users/nicknames Sync Error:", error);
+      fallbackLocalNicknames();
+    });
+  } else {
+    fallbackLocalNicknames();
+  }
+}
+
+function fallbackLocalNicknames() {
+  allNicknames = JSON.parse(localStorage.getItem("all_nicknames") || "[]");
+  renderNicknameList();
+}
+
 // 닉네임 목록 렌더링
 function renderNicknameList() {
   const listContainer = document.getElementById("nickname-list");
-  const nicknames = JSON.parse(localStorage.getItem("all_nicknames") || "[]");
+  const nicknames = allNicknames;
   const loginBtn = document.getElementById("btn-login");
   const inputVal = document.getElementById("input-nickname").value.trim();
 
@@ -134,7 +185,7 @@ function setupNicknameCardEvents() {
 }
 
 // 닉네임 추가 및 바로 로그인
-function handleAddNickname() {
+async function handleAddNickname() {
   const input = document.getElementById("input-nickname");
   const value = input.value.trim();
   if (value === "") {
@@ -142,10 +193,23 @@ function handleAddNickname() {
     return;
   }
 
-  const nicknames = JSON.parse(localStorage.getItem("all_nicknames") || "[]");
-  if (!nicknames.includes(value)) {
-    nicknames.push(value);
-    localStorage.setItem("all_nicknames", JSON.stringify(nicknames));
+  // 1. Firebase 활성화 시 Firestore에 사용자 문서 생성
+  if (isFirebaseActive && db) {
+    try {
+      await setDoc(doc(db, "users", value), {
+        nickname: value,
+        createdAt: new Date()
+      });
+    } catch (error) {
+      console.error("Failed to add user to Firestore:", error);
+      showToast("서버에 사용자를 등록하지 못했습니다.", "error");
+    }
+  }
+
+  // 2. 로컬 스토리지/전역 상태 목록에 추가 (백업/Mock용)
+  if (!allNicknames.includes(value)) {
+    allNicknames.push(value);
+    localStorage.setItem("all_nicknames", JSON.stringify(allNicknames));
   }
 
   // 바로 세션 활성화 및 렌더
@@ -158,7 +222,7 @@ function handleAddNickname() {
 // 닉네임 삭제 확인 모달
 function openDeleteNicknameModal(nick) {
   targetNicknameToDelete = nick;
-  document.getElementById("delete-nickname-desc").innerText = `닉네임 "${nick}"의 모든 로컬 학습 데이터가 영구 삭제됩니다.`;
+  document.getElementById("delete-nickname-desc").innerText = `닉네임 "${nick}"의 모든 학습 데이터가 영구 삭제됩니다.`;
   document.getElementById("input-delete-nickname-confirm").value = "";
   document.getElementById("btn-confirm-delete-nickname").disabled = true;
   openModal("modal-delete-nickname");
@@ -170,19 +234,43 @@ function handleNicknameDeleteConfirmText(e) {
   btn.disabled = (text !== targetNicknameToDelete);
 }
 
-function executeNicknameDeletion() {
+async function executeNicknameDeletion() {
   if (targetNicknameToDelete === "") return;
 
-  // 1. 닉네임 목록에서 제외
-  let nicknames = JSON.parse(localStorage.getItem("all_nicknames") || "[]");
-  nicknames = nicknames.filter(n => n !== targetNicknameToDelete);
-  localStorage.setItem("all_nicknames", JSON.stringify(nicknames));
+  // 1. Firestore에서 해당 닉네임 및 데이터 일괄 삭제
+  if (isFirebaseActive && db) {
+    try {
+      // 1-1. 닉네임 문서 삭제
+      await deleteDoc(doc(db, "users", targetNicknameToDelete));
+      
+      // 1-2. 해당 사용자의 대표 문장(mainSentences) 삭제
+      const mainColRef = collection(db, "users", targetNicknameToDelete, "mainSentences");
+      const mainSnapshot = await getDocs(mainColRef);
+      for (const docSnap of mainSnapshot.docs) {
+        await deleteDoc(doc(db, "users", targetNicknameToDelete, "mainSentences", docSnap.id));
+      }
 
-  // 2. 해당 닉네임의 로컬 데이터 전부 삭제
+      // 1-3. 해당 사용자의 패턴 카드(patternCards) 삭제
+      const patternColRef = collection(db, "users", targetNicknameToDelete, "patternCards");
+      const patternSnapshot = await getDocs(patternColRef);
+      for (const docSnap of patternSnapshot.docs) {
+        await deleteDoc(doc(db, "users", targetNicknameToDelete, "patternCards", docSnap.id));
+      }
+    } catch (error) {
+      console.error("Failed to delete user data from Firestore:", error);
+      showToast("서버에서 데이터를 삭제하는 중 오류가 발생했습니다.", "error");
+    }
+  }
+
+  // 2. 닉네임 목록에서 제외
+  allNicknames = allNicknames.filter(n => n !== targetNicknameToDelete);
+  localStorage.setItem("all_nicknames", JSON.stringify(allNicknames));
+
+  // 3. 해당 닉네임의 로컬 데이터 전부 삭제
   localStorage.removeItem(`mock_mainSentences_${targetNicknameToDelete}`);
   localStorage.removeItem(`mock_patternCards_${targetNicknameToDelete}`);
 
-  // 3. 만약 현재 로그인된 닉네임이라면 로그아웃 처리
+  // 4. 만약 현재 로그인된 닉네임이라면 로그아웃 처리
   const currentNick = localStorage.getItem("nickname");
   if (currentNick === targetNicknameToDelete) {
     localStorage.removeItem("nickname");
@@ -865,7 +953,7 @@ function setupEventListeners() {
   document.getElementById("input-nickname").addEventListener("input", (e) => {
     const value = e.target.value.trim();
     const loginBtn = document.getElementById("btn-login");
-    const nicknames = JSON.parse(localStorage.getItem("all_nicknames") || "[]");
+    const nicknames = allNicknames;
     
     if (nicknames.length === 0 || value !== "") {
       if (loginBtn) loginBtn.style.display = "block";
