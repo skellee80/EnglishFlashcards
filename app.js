@@ -26,6 +26,24 @@ let fcFailDeck = [];
 let fcFailIndex = 0;
 let fcSuccessDeck = [];
 let fcSuccessIndex = 0;
+let isCurrentFCAroundCorrect = false;
+
+// format Speedy Mode Intervals
+function formatSpeedyInterval(successCount) {
+  const count = successCount || 1;
+  const totalSeconds = count * 30;
+  if (totalSeconds < 60) {
+    return `${totalSeconds}초`;
+  } else {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (seconds > 0) {
+      return `${minutes}분 ${seconds}초`;
+    } else {
+      return `${minutes}분`;
+    }
+  }
+}
 
 function shuffleArray(array) {
   const copy = [...array];
@@ -770,6 +788,7 @@ function renderReviewSection() {
     if (groupEl) {
       const titleEl = groupEl.querySelector(".group-title");
       if (titleEl) {
+        const isSpeedy = document.getElementById("toggle-speedy-mode")?.checked || false;
         const originalTitles = {
           1: '🌱 1회 성공 (대기: <span class="stage-time">2주</span>)',
           2: '🌿 2회 성공 (대기: <span class="stage-time">1달</span>)',
@@ -779,7 +798,17 @@ function renderReviewSection() {
           6: '✨ 6회 성공 (대기: <span class="stage-time">2년</span>)',
           7: '🏆 마스터 (암기 완료! 🎉)'
         };
-        titleEl.innerHTML = `${originalTitles[i]} <span class="header-count" style="margin-left:4px; font-size:0.8rem; background-color: rgba(160, 196, 255, 0.15); padding: 1px 6px; border-radius: 50px;">${stageList.length}</span>`;
+        const speedyTitles = {
+          1: '🌱 1회 성공 (대기: <span class="stage-time">30초</span>)',
+          2: '🌿 2회 성공 (대기: <span class="stage-time">1분</span>)',
+          3: '🍀 3회 성공 (대기: <span class="stage-time">1분 30초</span>)',
+          4: '🌳 4회 성공 (대기: <span class="stage-time">2분</span>)',
+          5: '👑 5회 성공 (대기: <span class="stage-time">2분 30초</span>)',
+          6: '✨ 6회 성공 (대기: <span class="stage-time">3분</span>)',
+          7: '🏆 마스터 (암기 완료! 🎉)'
+        };
+        const titleHtml = isSpeedy ? speedyTitles[i] : originalTitles[i];
+        titleEl.innerHTML = `${titleHtml} <span class="header-count" style="margin-left:4px; font-size:0.8rem; background-color: rgba(160, 196, 255, 0.15); padding: 1px 6px; border-radius: 50px;">${stageList.length}</span>`;
       }
     }
 
@@ -791,7 +820,8 @@ function renderReviewSection() {
         let finalNextTestAt = parseDate(card.nextTestAt);
         if (isSpeedy && card.lastSuccessAt) {
           const lastSuccess = new Date(parseDate(card.lastSuccessAt));
-          finalNextTestAt = new Date(lastSuccess.getTime() + 30000);
+          const count = card.successCount || 1;
+          finalNextTestAt = new Date(lastSuccess.getTime() + count * 30000);
         }
         const finalIsReady = finalNextTestAt ? (new Date() >= new Date(finalNextTestAt)) : true;
         
@@ -809,9 +839,12 @@ function renderReviewSection() {
             </div>
           `;
         } else if (finalIsReady) {
+          const label = isSpeedy 
+            ? `⏳ 복습 가능 (${formatSpeedyInterval(card.successCount)})` 
+            : `⏳ 복습 가능 (플래시카드)`;
           controlsHtml = `
             <div class="countdown-timer-text" style="color: #27ae60; font-weight: bold;">
-              ⏳ 복습 가능 (플래시카드)
+              ${label}
             </div>
           `;
         } else {
@@ -915,8 +948,9 @@ function calculateNextTestTime(successCount, isSpeedy) {
   let msToAdd = 0;
 
   if (isSpeedy) {
-    // 가속 복습 주기: 1회 ~ 6회 성공 모두 각 30초씩 적용
-    msToAdd = 30 * 1000;
+    // 가속 복습 주기: 1회 성공 = 30초, 2회 성공 = 1분, 3회 성공 = 1분30초 ...
+    const count = successCount || 1;
+    msToAdd = count * 30 * 1000;
   } else {
     // 실제 주기: 2주, 1달, 3달, 6달, 1년, 2년
     const DAY = 24 * 60 * 60 * 1000;
@@ -1069,7 +1103,8 @@ function updateFlashCardCounts() {
     let nextTestAt = parseDate(c.nextTestAt);
     if (isSpeedy && c.lastSuccessAt) {
       const lastSuccess = new Date(parseDate(c.lastSuccessAt));
-      nextTestAt = new Date(lastSuccess.getTime() + 30000);
+      const count = c.successCount || 1;
+      nextTestAt = new Date(lastSuccess.getTime() + count * 30000);
     }
     return nextTestAt ? (new Date() >= new Date(nextTestAt)) : true;
   });
@@ -1103,7 +1138,8 @@ function updateFlashCardCounts() {
           let nextDate = parseDate(c.nextTestAt);
           if (isSpeedy && c.lastSuccessAt) {
             const lastSuccess = new Date(parseDate(c.lastSuccessAt));
-            nextDate = new Date(lastSuccess.getTime() + 30000);
+            const count = c.successCount || 1;
+            nextDate = new Date(lastSuccess.getTime() + count * 30000);
           }
           return {
             ...c,
@@ -1159,6 +1195,8 @@ function evaluateAnswer(section, userAnswer) {
   if (!card) return;
   const normalized = userAnswer.trim().toLowerCase();
   const correct = normalized === card.english.trim().toLowerCase();
+  
+  isCurrentFCAroundCorrect = correct;
 
   // Show feedback and unblur english
   const feedbackEl = document.getElementById(`${section}-fc-feedback`);
@@ -1377,7 +1415,8 @@ function startSuccessPractice() {
     let nextTestAt = parseDate(c.nextTestAt);
     if (isSpeedy && c.lastSuccessAt) {
       const lastSuccess = new Date(parseDate(c.lastSuccessAt));
-      nextTestAt = new Date(lastSuccess.getTime() + 30000);
+      const count = c.successCount || 1;
+      nextTestAt = new Date(lastSuccess.getTime() + count * 30000);
     }
     return nextTestAt ? (new Date() >= new Date(nextTestAt)) : true;
   }));
@@ -1561,15 +1600,7 @@ async function updatePatternCardFields(id, ko, en) {
 }
 
 function updateDarkModeIcon(isDark) {
-  const icon = document.querySelector("#btn-dark-mode-toggle i");
-  if (icon) {
-    if (isDark) {
-      icon.setAttribute("data-lucide", "sun");
-    } else {
-      icon.setAttribute("data-lucide", "moon");
-    }
-    lucide.createIcons();
-  }
+  // Appearance and sliding states are handled by CSS classes on body element.
 }
 
 function setupEventListeners() {
