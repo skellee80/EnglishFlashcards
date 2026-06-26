@@ -634,7 +634,7 @@ function renderMainSentences() {
       <div class="sentence-card ${isActive}" data-id="${sentence.id}">
         <div class="card-top">
           <div class="card-top-left">
-            <span class="card-index">#${index + 1}</span>
+            <span class="card-index">${index + 1}</span>
           </div>
           <div class="card-actions-row">
             <button class="btn-card-action btn-edit-main" data-id="${sentence.id}" title="편집">
@@ -714,7 +714,7 @@ function renderPatternCards() {
         <div class="sentence-card" id="card-${card.id}">
           <div class="card-top">
             <div class="card-top-left">
-              <span class="card-index">#${index + 1}</span>
+              <span class="card-index">${index + 1}</span>
               <span class="card-badge ${badgeClass}">${statusText}</span>
             </div>
             <div class="card-actions-row">
@@ -783,7 +783,7 @@ function renderReviewSection() {
       <div class="sentence-card" id="card-${card.id}">
         <div class="card-top">
           <div class="card-top-left">
-            <span class="card-index">#${index + 1}</span>
+            <span class="card-index">${index + 1}</span>
             <span class="card-badge badge-fail">실패</span>
           </div>
           <div class="card-actions-row">
@@ -953,7 +953,7 @@ function renderReviewSection() {
           <div class="sentence-card" id="card-${card.id}">
             <div class="card-top">
               <div class="card-top-left">
-                <span class="card-index">#${index + 1}</span>
+                <span class="card-index">${index + 1}</span>
                 <span class="card-badge badge-success">${badgeText}</span>
               </div>
               <div class="card-actions-row">
