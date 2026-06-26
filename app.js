@@ -108,6 +108,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // 2. UI 초기화 및 세션 체크
+  const speedyEl = document.getElementById("toggle-speedy-mode");
+  if (speedyEl) {
+    const isSpeedyStored = localStorage.getItem("speedy-mode") === "true";
+    speedyEl.checked = isSpeedyStored;
+  }
+
   checkSession();
   setupEventListeners();
   startCountdownTimer();
@@ -823,7 +829,16 @@ function renderReviewSection() {
           const count = card.successCount || 1;
           finalNextTestAt = new Date(lastSuccess.getTime() + count * 30000);
         }
-        const finalIsReady = finalNextTestAt ? (new Date().getTime() >= new Date(finalNextTestAt).getTime()) : true;
+        
+        let finalIsReady = false;
+        if (finalNextTestAt) {
+          const nextTime = new Date(finalNextTestAt).getTime();
+          if (!isNaN(nextTime)) {
+            finalIsReady = (new Date().getTime() >= nextTime);
+          }
+        } else {
+          finalIsReady = true;
+        }
         
         if (finalIsReady && i < 7) {
           readyCardsCount.val++;
@@ -839,9 +854,7 @@ function renderReviewSection() {
             </div>
           `;
         } else if (finalIsReady) {
-          const label = isSpeedy 
-            ? `⏳ 복습 가능 (${formatSpeedyInterval(card.successCount)})` 
-            : `⏳ 복습 가능 (플래시카드)`;
+          const label = `⏳ 복습 가능 (플래시카드)`;
           controlsHtml = `
             <div class="countdown-timer-text" style="color: #27ae60; font-weight: bold;">
               ${label}
@@ -1126,7 +1139,10 @@ function updateFlashCardCounts() {
       const count = c.successCount || 1;
       nextTestAt = new Date(lastSuccess.getTime() + count * 30000);
     }
-    return nextTestAt ? (new Date().getTime() >= new Date(nextTestAt).getTime()) : true;
+    if (!nextTestAt) return false;
+    const nextTime = new Date(nextTestAt).getTime();
+    if (isNaN(nextTime)) return false;
+    return new Date().getTime() >= nextTime;
   });
   const successCount = successDueCards.length;
 
@@ -1438,7 +1454,10 @@ function startSuccessPractice() {
       const count = c.successCount || 1;
       nextTestAt = new Date(lastSuccess.getTime() + count * 30000);
     }
-    return nextTestAt ? (new Date().getTime() >= new Date(nextTestAt).getTime()) : true;
+    if (!nextTestAt) return false;
+    const nextTime = new Date(nextTestAt).getTime();
+    if (isNaN(nextTime)) return false;
+    return new Date().getTime() >= nextTime;
   }));
   fcSuccessIndex = 0;
   if (fcSuccessDeck.length === 0) {

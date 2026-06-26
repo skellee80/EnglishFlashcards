@@ -199,9 +199,13 @@ body {
   border-radius: 50%;
   left: 3px;
   top: 3px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.35s, width 0.2s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   z-index: 2;
+  transform: translateX(0);
+}
+.btn-dark-mode-toggle:active .toggle-thumb {
+  width: 27px;
 }
 .btn-dark-mode-toggle .toggle-icon {
   display: flex;
@@ -228,8 +232,12 @@ body.dark-mode .btn-dark-mode-toggle {
   border-color: #4A5568;
 }
 body.dark-mode .btn-dark-mode-toggle .toggle-thumb {
-  left: 31px;
+  transform: translateX(28px);
   background: linear-gradient(135deg, #7F9CF5, #4C51BF);
+}
+body.dark-mode .btn-dark-mode-toggle:active .toggle-thumb {
+  width: 27px;
+  transform: translateX(23px);
 }
 body.dark-mode .btn-dark-mode-toggle .toggle-icon.left {
   color: #4A5568;
