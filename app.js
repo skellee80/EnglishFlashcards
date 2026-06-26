@@ -103,16 +103,21 @@ function checkSession() {
   const savedNickname = localStorage.getItem("nickname");
   renderNicknameList();
   
+  const titleEl = document.getElementById("header-title");
+  
   if (savedNickname) {
     nickname = savedNickname;
-    document.getElementById("user-display-name").innerText = nickname;
-    document.getElementById("user-badge").style.display = "flex";
+    if (titleEl) titleEl.innerText = `${nickname}의 영어 놀이터`;
+    const userBadge = document.getElementById("user-badge");
+    if (userBadge) userBadge.style.display = "flex";
     document.getElementById("btn-logout-header").style.display = "inline-flex";
     document.getElementById("auth-view").style.display = "none";
     document.getElementById("main-view").style.display = "block";
     startSync();
   } else {
-    document.getElementById("user-badge").style.display = "none";
+    if (titleEl) titleEl.innerText = "영어 놀이터";
+    const userBadge = document.getElementById("user-badge");
+    if (userBadge) userBadge.style.display = "none";
     document.getElementById("btn-logout-header").style.display = "none";
     document.getElementById("auth-view").style.display = "flex";
     document.getElementById("main-view").style.display = "none";
@@ -566,11 +571,15 @@ function renderMainSentences() {
         <div class="card-top">
           <div class="card-top-left">
             <span class="card-index">#${index + 1}</span>
-            <span class="card-badge">대표 문장</span>
           </div>
-          <button class="btn-card-action btn-delete" data-id="${sentence.id}" title="삭제">
-            <i data-lucide="trash-2"></i>
-          </button>
+          <div class="card-actions-row">
+            <button class="btn-card-action btn-edit-main" data-id="${sentence.id}" title="편집">
+              <i data-lucide="edit-3"></i>
+            </button>
+            <button class="btn-card-action btn-delete" data-id="${sentence.id}" title="삭제">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
         </div>
         <div class="card-english-wrapper">
           <div class="card-english-column">
@@ -644,9 +653,14 @@ function renderPatternCards() {
               <span class="card-index">#${index + 1}</span>
               <span class="card-badge ${badgeClass}">${statusText}</span>
             </div>
-            <button class="btn-card-action btn-delete-pattern" data-id="${card.id}" title="삭제">
-              <i data-lucide="trash-2"></i>
-            </button>
+            <div class="card-actions-row">
+              <button class="btn-card-action btn-edit-pattern" data-id="${card.id}" title="편집">
+                <i data-lucide="edit-3"></i>
+              </button>
+              <button class="btn-card-action btn-delete-pattern" data-id="${card.id}" title="삭제">
+                <i data-lucide="trash-2"></i>
+              </button>
+            </div>
           </div>
           <div class="card-english-wrapper">
             <div class="card-english-column">
@@ -708,9 +722,14 @@ function renderReviewSection() {
             <span class="card-index">#${index + 1}</span>
             <span class="card-badge badge-fail">실패</span>
           </div>
-          <button class="btn-card-action btn-delete-pattern" data-id="${card.id}">
-            <i data-lucide="trash-2"></i>
-          </button>
+          <div class="card-actions-row">
+            <button class="btn-card-action btn-edit-pattern" data-id="${card.id}" title="편집">
+              <i data-lucide="edit-3"></i>
+            </button>
+            <button class="btn-card-action btn-delete-pattern" data-id="${card.id}">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
         </div>
         <div class="card-english-wrapper">
           <div class="card-english-column">
@@ -725,9 +744,6 @@ function renderReviewSection() {
           <div class="self-assess-btn-group">
             <button class="btn-assess btn-assess-success" data-id="${card.id}">
               성공 👍
-            </button>
-            <button class="btn-assess btn-assess-fail" data-id="${card.id}">
-              실패 👎
             </button>
           </div>
         </div>
@@ -749,6 +765,24 @@ function renderReviewSection() {
       stageList = patternCards.filter(c => c.status === 'success' && c.successCount === 6);
     } else {
       stageList = patternCards.filter(c => c.status === 'success' && c.successCount === i);
+    }
+
+    // 그룹 헤더 옆 개수 갱신
+    const groupEl = document.querySelector(`.success-group[data-stage="${i}"]`);
+    if (groupEl) {
+      const titleEl = groupEl.querySelector(".group-title");
+      if (titleEl) {
+        const originalTitles = {
+          1: '🌱 1회 성공 (대기: <span class="stage-time">2주</span>)',
+          2: '🌿 2회 성공 (대기: <span class="stage-time">1달</span>)',
+          3: '🍀 3회 성공 (대기: <span class="stage-time">3달</span>)',
+          4: '🌳 4회 성공 (대기: <span class="stage-time">6달</span>)',
+          5: '👑 5회 성공 (대기: <span class="stage-time">1년</span>)',
+          6: '✨ 6회 성공 (대기: <span class="stage-time">2년</span>)',
+          7: '🏆 마스터 (암기 완료! 🎉)'
+        };
+        titleEl.innerHTML = `${originalTitles[i]} <span class="header-count" style="margin-left:4px; font-size:0.8rem; background-color: rgba(160, 196, 255, 0.15); padding: 1px 6px; border-radius: 50px;">${stageList.length}</span>`;
+      }
     }
 
     if (stageList.length === 0) {
@@ -799,9 +833,14 @@ function renderReviewSection() {
                 <span class="card-index">#${index + 1}</span>
                 <span class="card-badge badge-success">${badgeText}</span>
               </div>
-              <button class="btn-card-action btn-delete-pattern" data-id="${card.id}">
-                <i data-lucide="trash-2"></i>
-              </button>
+              <div class="card-actions-row">
+                <button class="btn-card-action btn-edit-pattern" data-id="${card.id}" title="편집">
+                  <i data-lucide="edit-3"></i>
+                </button>
+                <button class="btn-card-action btn-delete-pattern" data-id="${card.id}">
+                  <i data-lucide="trash-2"></i>
+                </button>
+              </div>
             </div>
             <div class="card-english-wrapper">
               <div class="card-english-column">
@@ -823,8 +862,10 @@ function renderReviewSection() {
 
   const totalReviewNeed = failedList.length + readyCardsCount.val;
   const badge = document.getElementById("review-count-badge");
-  badge.innerText = totalReviewNeed;
-  badge.style.display = totalReviewNeed > 0 ? "inline-block" : "none";
+  if (badge) {
+    badge.innerText = totalReviewNeed;
+    badge.style.display = totalReviewNeed > 0 ? "inline-block" : "none";
+  }
 
   lucide.createIcons();
   setupPatternCardEvents();
@@ -1024,7 +1065,11 @@ function safeAddListener(id, event, callback) {
 // ==================== FLASH CARDS ====================
 function updateFlashCardCounts() {
   const failCount = patternCards.filter(c => c.status === 'fail').length;
-  const successCount = patternCards.filter(c => c.status === 'success' && (c.successCount || 0) < 7).length;
+  const successCount = patternCards.filter(c => {
+    if (c.status !== 'success' || (c.successCount || 0) < 1 || (c.successCount || 0) >= 7) return false;
+    const nextTestAt = parseDate(c.nextTestAt);
+    return nextTestAt ? (new Date() >= new Date(nextTestAt)) : true;
+  }).length;
   const failBadge = document.getElementById('fail-fc-count');
   const successBadge = document.getElementById('success-fc-count');
   if (failBadge) failBadge.textContent = `${failCount}장`;
@@ -1105,6 +1150,9 @@ function startVoiceRecognition(section) {
   recog.interimResults = false;
   recog.maxAlternatives = 1;
 
+  const btn = document.getElementById(`${section}-fc-voice-btn`);
+  if (btn) btn.classList.add('listening');
+
   recog.onresult = (event) => {
     const transcript = event.results[0][0].transcript;
     const inputEl = document.getElementById(`${section}-fc-input`);
@@ -1113,6 +1161,9 @@ function startVoiceRecognition(section) {
   };
   recog.onerror = (e) => {
     showToast('음성 인식 오류: ' + e.error, 'warning');
+  };
+  recog.onend = () => {
+    if (btn) btn.classList.remove('listening');
   };
   recog.start();
 }
@@ -1125,8 +1176,14 @@ function addFlashCardInputListeners() {
       evaluateAnswer('fail', e.target.value);
     }
   });
+  safeAddListener('fail-fc-submit-btn', 'click', () => {
+    const val = document.getElementById('fail-fc-input').value;
+    evaluateAnswer('fail', val);
+  });
   safeAddListener('fail-fc-voice-btn', 'click', () => startVoiceRecognition('fail'));
-  safeAddListener('fail-fc-force-success', 'click', () => evaluateAnswer('fail', fcFailDeck[fcFailIndex].english));
+  safeAddListener('fail-fc-force-success', 'click', async () => {
+    await handleFailCardCorrect();
+  });
 
   // ---------- 성공 카드 ----------
   safeAddListener('success-fc-input', 'keypress', (e) => {
@@ -1134,8 +1191,14 @@ function addFlashCardInputListeners() {
       evaluateAnswer('success', e.target.value);
     }
   });
+  safeAddListener('success-fc-submit-btn', 'click', () => {
+    const val = document.getElementById('success-fc-input').value;
+    evaluateAnswer('success', val);
+  });
   safeAddListener('success-fc-voice-btn', 'click', () => startVoiceRecognition('success'));
-  safeAddListener('success-fc-force-success', 'click', () => evaluateAnswer('success', fcSuccessDeck[fcSuccessIndex].english));
+  safeAddListener('success-fc-force-success', 'click', async () => {
+    await handleSuccessCardCorrect();
+  });
 }
 
 function showFailFCCard() {
@@ -1193,7 +1256,8 @@ function revealFailCard() {
 async function handleFailCardCorrect() {
   const card = fcFailDeck[fcFailIndex];
   if (!card) return;
-  const nextTest = calculateNextTestTime(1, false);
+  const isSpeedy = document.getElementById("toggle-speedy-mode")?.checked || false;
+  const nextTest = calculateNextTestTime(1, isSpeedy);
   await updatePatternCard(card.id, {
     status: 'success',
     successCount: 1,
@@ -1223,7 +1287,11 @@ function restartFailPractice() {
 
 // ---------- 성공 카드 연습 ----------
 function startSuccessPractice() {
-  fcSuccessDeck = shuffleArray(patternCards.filter(c => c.status === 'success' && (c.successCount || 0) < 7));
+  fcSuccessDeck = shuffleArray(patternCards.filter(c => {
+    if (c.status !== 'success' || (c.successCount || 0) < 1 || (c.successCount || 0) >= 7) return false;
+    const nextTestAt = parseDate(c.nextTestAt);
+    return nextTestAt ? (new Date() >= new Date(nextTestAt)) : true;
+  }));
   fcSuccessIndex = 0;
   if (fcSuccessDeck.length === 0) {
     showToast('연습할 성공 카드가 없어요! 먼저 복습 보관함에 카드를 추가해 보세요 ✨', 'info');
@@ -1287,7 +1355,8 @@ async function handleSuccessCardCorrect() {
   const card = fcSuccessDeck[fcSuccessIndex];
   if (!card) return;
   const newSuccessCount = Math.min((card.successCount || 0) + 1, 7);
-  const nextTest = calculateNextTestTime(newSuccessCount, false);
+  const isSpeedy = document.getElementById("toggle-speedy-mode")?.checked || false;
+  const nextTest = calculateNextTestTime(newSuccessCount, isSpeedy);
   await updatePatternCard(card.id, {
     status: 'success',
     successCount: newSuccessCount,
@@ -1323,7 +1392,108 @@ function restartSuccessPractice() {
   updateFlashCardCounts();
 }
 
+let editingMainSentenceId = null;
+let editingPatternCardId = null;
+
+function openEditMainSentenceModal(id) {
+  const sentence = mainSentences.find(s => s.id === id);
+  if (!sentence) return;
+  editingMainSentenceId = id;
+  
+  const titleEl = document.querySelector("#modal-add-main h3");
+  if (titleEl) titleEl.innerText = "⭐ 대표 문장 편집";
+  const btnSave = document.getElementById("btn-save-main");
+  if (btnSave) btnSave.innerText = "수정 완료 🌸";
+  
+  document.getElementById("main-ko").value = sentence.korean;
+  document.getElementById("main-en").value = sentence.english;
+  
+  openModal("modal-add-main");
+}
+
+async function updateMainSentence(id, ko, en) {
+  const formattedEn = capitalizeEnglish(en);
+  if (isFirebaseActive && db) {
+    const docRef = doc(db, "users", nickname, "mainSentences", id);
+    await updateDoc(docRef, {
+      korean: ko,
+      english: formattedEn
+    });
+  } else {
+    const mainKey = `mock_mainSentences_${nickname}`;
+    const list = JSON.parse(localStorage.getItem(mainKey) || "[]");
+    const idx = list.findIndex(s => s.id === id);
+    if (idx !== -1) {
+      list[idx].korean = ko;
+      list[idx].english = formattedEn;
+      localStorage.setItem(mainKey, JSON.stringify(list));
+      triggerLocalUpdate();
+    }
+  }
+}
+
+function openEditPatternCardModal(id) {
+  const card = patternCards.find(c => c.id === id);
+  if (!card) return;
+  editingPatternCardId = id;
+  
+  const titleEl = document.querySelector("#modal-add-pattern h3");
+  if (titleEl) titleEl.innerText = "💡 패턴 카드 편집";
+  const btnSave = document.getElementById("btn-save-pattern");
+  if (btnSave) btnSave.innerText = "수정 완료 🌸";
+  
+  const descEl = document.getElementById("add-pattern-parent-desc");
+  const activeMain = mainSentences.find(s => s.id === card.mainSentenceId);
+  if (descEl && activeMain) {
+    descEl.innerText = `대표 문장: "${activeMain.english}"`;
+  }
+  
+  document.getElementById("pattern-ko").value = card.korean;
+  document.getElementById("pattern-en").value = card.english;
+  
+  openModal("modal-add-pattern");
+}
+
+async function updatePatternCardFields(id, ko, en) {
+  const formattedEn = capitalizeEnglish(en);
+  await updatePatternCard(id, {
+    korean: ko,
+    english: formattedEn
+  });
+}
+
+function updateDarkModeIcon(isDark) {
+  const icon = document.querySelector("#btn-dark-mode-toggle i");
+  if (icon) {
+    if (isDark) {
+      icon.setAttribute("data-lucide", "moon");
+    } else {
+      icon.setAttribute("data-lucide", "sun");
+    }
+    lucide.createIcons();
+  }
+}
+
 function setupEventListeners() {
+  // 다크 모드 토글 및 초기화
+  const darkBtn = document.getElementById("btn-dark-mode-toggle");
+  if (darkBtn) {
+    const isDark = localStorage.getItem("dark-mode") === "true";
+    if (isDark) {
+      document.body.classList.add("dark-mode");
+      updateDarkModeIcon(true);
+    }
+    
+    darkBtn.addEventListener("click", () => {
+      const active = document.body.classList.toggle("dark-mode");
+      localStorage.setItem("dark-mode", active);
+      updateDarkModeIcon(active);
+    });
+  }
+
+  // 플래시카드 입력 리스너 초기 활성화
+  addFlashCardInputListeners();
+
   // 1. 닉네임 입력 후 엔터 쳤을 때
   safeAddListener("input-nickname", "keypress", (e) => {
     if (e.key === "Enter") handleAddNickname();
@@ -1364,6 +1534,12 @@ function setupEventListeners() {
 
   // 4. 대표 문장 모달 컨트롤
   safeAddListener("btn-add-main", "click", () => {
+    editingMainSentenceId = null;
+    const titleEl = document.querySelector("#modal-add-main h3");
+    if (titleEl) titleEl.innerText = "⭐ 새 대표 문장 추가";
+    const btnSave = document.getElementById("btn-save-main");
+    if (btnSave) btnSave.innerText = "추가 완료 🌸";
+
     const koEl = document.getElementById("main-ko");
     const enEl = document.getElementById("main-en");
     if (koEl) koEl.value = "";
@@ -1381,12 +1557,23 @@ function setupEventListeners() {
       showToast("한글 뜻과 영어 문장을 모두 입력해 주세요.", "error");
       return;
     }
-    await addMainSentence(ko, en);
+    if (editingMainSentenceId) {
+      await updateMainSentence(editingMainSentenceId, ko, en);
+      editingMainSentenceId = null;
+    } else {
+      await addMainSentence(ko, en);
+    }
     closeModal("modal-add-main");
   });
 
   // 5. 패턴 카드 모달 컨트롤
   safeAddListener("btn-add-pattern", "click", () => {
+    editingPatternCardId = null;
+    const titleEl = document.querySelector("#modal-add-pattern h3");
+    if (titleEl) titleEl.innerText = "💡 새 패턴 카드 추가";
+    const btnSave = document.getElementById("btn-save-pattern");
+    if (btnSave) btnSave.innerText = "추가 완료 🌸";
+
     const activeMain = mainSentences.find(s => s.id === selectedMainSentenceId);
     if (!activeMain) return;
     const descEl = document.getElementById("add-pattern-parent-desc");
@@ -1408,7 +1595,12 @@ function setupEventListeners() {
       showToast("한글 뜻과 영어 문장을 모두 입력해 주세요.", "error");
       return;
     }
-    await addPatternCard(selectedMainSentenceId, ko, en);
+    if (editingPatternCardId) {
+      await updatePatternCardFields(editingPatternCardId, ko, en);
+      editingPatternCardId = null;
+    } else {
+      await addPatternCard(selectedMainSentenceId, ko, en);
+    }
     closeModal("modal-add-pattern");
   });
 

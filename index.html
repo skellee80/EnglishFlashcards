@@ -28,17 +28,13 @@
     <!-- 헤더 -->
     <header class="app-header">
       <div class="header-logo">
-        <span class="logo-abc">ABC</span>
-        <h1>소소한 가족 영어 놀이터</h1>
+        <h1 id="header-title">영어 놀이터</h1>
+        <button id="btn-dark-mode-toggle" class="btn-dark-mode-toggle" title="다크 모드 토글">
+          <i data-lucide="sun"></i>
+        </button>
         <button id="btn-logout-header" class="btn-logout-header" title="다른 닉네임으로 접속" style="display: none;">
           <i data-lucide="door-open"></i>
         </button>
-      </div>
-      <div class="header-actions">
-        <div class="user-profile-badge" id="user-badge" style="display: none;">
-          <span class="avatar">🧸</span>
-          <span id="user-display-name" class="username">닉네임</span>
-        </div>
       </div>
     </header>
 
@@ -80,7 +76,6 @@
         </button>
         <button class="tab-button" data-tab="tab-review">
           <i data-lucide="calendar"></i> 복습 보관함
-          <span class="badge-count" id="review-count-badge">0</span>
         </button>
       </nav>
 
@@ -92,15 +87,15 @@
           <div class="deck-column main-sentences-column full-width">
             <div class="column-header">
               <h3>
-                <span class="emoji">⭐</span> 대표 문장 리스트
+                <span class="emoji">⭐</span> 대표 문장
                 <span class="header-count" id="main-sentences-count">(0)</span>
               </h3>
               <div class="header-buttons-row">
                 <button id="btn-shuffle-main" class="btn-header-action" title="순서 섞기">
                   <i data-lucide="shuffle"></i>
                 </button>
-                <button id="btn-add-main" class="btn btn-primary btn-sm">
-                  <i data-lucide="plus"></i> 대표 문장 추가
+                <button id="btn-add-main" class="btn btn-primary btn-sm" title="대표 문장 추가">
+                  <i data-lucide="plus"></i>
                 </button>
               </div>
             </div>
@@ -145,6 +140,7 @@
                 <div class="fc-input-panel">
                   <div class="fc-input-wrap">
                     <input type="text" id="fail-fc-input" class="fc-input" placeholder="영어로 입력 후 Enter…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+                    <button id="fail-fc-submit-btn" class="fc-submit-btn" title="입력 완료"><i data-lucide="check"></i></button>
                     <button id="fail-fc-voice-btn" class="fc-voice-btn" title="음성 입력"><i data-lucide="mic"></i></button>
                   </div>
                   <div class="fc-feedback" id="fail-fc-feedback"></div>
@@ -203,6 +199,7 @@
                 <div class="fc-input-panel">
                   <div class="fc-input-wrap">
                     <input type="text" id="success-fc-input" class="fc-input" placeholder="영어로 입력 후 Enter…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+                    <button id="success-fc-submit-btn" class="fc-submit-btn" title="입력 완료"><i data-lucide="check"></i></button>
                     <button id="success-fc-voice-btn" class="fc-voice-btn" title="음성 입력"><i data-lucide="mic"></i></button>
                   </div>
                   <div class="fc-feedback" id="success-fc-feedback"></div>
