@@ -423,6 +423,81 @@ body.dark-mode .btn-secondary {
   border-color: var(--border-light);
 }
 
+/* Dark mode additional aesthetic adjustments */
+body.dark-mode .column-header-red {
+  background-color: #4A2525;
+  color: #F8B4B4;
+  border-bottom-color: #7E2A2A;
+}
+body.dark-mode .column-header-green {
+  background-color: #254A35;
+  color: #B4F8C8;
+  border-bottom-color: #2A7E4B;
+}
+body.dark-mode .card-badge.badge-new {
+  background-color: #1A365D;
+  color: #90CDF4;
+}
+body.dark-mode .card-badge.badge-success {
+  background-color: #1C4532;
+  color: #9AE6B4;
+}
+body.dark-mode .card-badge.badge-fail {
+  background-color: #742A2A;
+  color: #FEB2B2;
+}
+body.dark-mode .btn-assess-success {
+  background-color: #1C4532;
+  color: #9AE6B4;
+  border: 1px solid #2F855A;
+}
+body.dark-mode .btn-assess-success:hover {
+  background-color: #276749;
+  color: #C6F6D5;
+}
+body.dark-mode .btn-card-action:hover {
+  background-color: #332B24;
+  color: var(--text-main);
+}
+body.dark-mode .btn-card-action.btn-delete:hover,
+body.dark-mode .btn-card-action.btn-delete-pattern:hover {
+  background-color: #4A2525;
+  color: #F8B4B4;
+}
+body.dark-mode .fc-count-badge {
+  background-color: #2B3A4A;
+  color: #A3D8F4;
+}
+body.dark-mode .tab-button:hover {
+  background-color: rgba(122, 162, 227, 0.15);
+  color: var(--primary-color);
+}
+body.dark-mode .slider {
+  background-color: #3D332B;
+}
+body.dark-mode .slider:before {
+  background-color: #A3968A;
+}
+body.dark-mode input:checked + .slider:before {
+  background-color: #FFFFFF;
+}
+
+/* Mute dark scrollbars */
+body.dark-mode ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+body.dark-mode ::-webkit-scrollbar-track {
+  background: #16120E;
+}
+body.dark-mode ::-webkit-scrollbar-thumb {
+  background: #3D332B;
+  border-radius: 4px;
+}
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: #4E4137;
+}
+
 /* ==================== BUTTONS ==================== */
 .btn {
   font-family: var(--font-family);

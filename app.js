@@ -759,7 +759,7 @@ function renderReviewSection() {
         <div class="card-controls">
           <div class="self-assess-btn-group">
             <button class="btn-assess btn-assess-success" data-id="${card.id}">
-              성공 👍
+              성공 처리 👍
             </button>
           </div>
         </div>
@@ -823,7 +823,7 @@ function renderReviewSection() {
           const count = card.successCount || 1;
           finalNextTestAt = new Date(lastSuccess.getTime() + count * 30000);
         }
-        const finalIsReady = finalNextTestAt ? (new Date() >= new Date(finalNextTestAt)) : true;
+        const finalIsReady = finalNextTestAt ? (new Date().getTime() >= new Date(finalNextTestAt).getTime()) : true;
         
         if (finalIsReady && i < 7) {
           readyCardsCount.val++;
@@ -848,9 +848,29 @@ function renderReviewSection() {
             </div>
           `;
         } else {
+          let timerText = "⏳ 계산 중...";
+          if (finalNextTestAt) {
+            const diff = new Date(finalNextTestAt).getTime() - new Date().getTime();
+            if (diff > 0) {
+              const seconds = Math.floor((diff / 1000) % 60);
+              const minutes = Math.floor((diff / (1000 * 60)) % 60);
+              const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+              const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+              if (days > 0) {
+                timerText = `⏳ ${days}일 ${hours}시간 남음`;
+              } else if (hours > 0) {
+                timerText = `⏳ ${hours}시간 ${minutes}분 남음`;
+              } else if (minutes > 0) {
+                timerText = `⏳ ${minutes}분 ${seconds}초 남음`;
+              } else {
+                timerText = `⏳ ${seconds}초 남음`;
+              }
+            }
+          }
           controlsHtml = `
             <div class="countdown-timer-text" data-next-test-at="${finalNextTestAt ? new Date(finalNextTestAt).toISOString() : ''}">
-              ⏳ 계산 중...
+              ${timerText}
             </div>
           `;
         }
@@ -1106,7 +1126,7 @@ function updateFlashCardCounts() {
       const count = c.successCount || 1;
       nextTestAt = new Date(lastSuccess.getTime() + count * 30000);
     }
-    return nextTestAt ? (new Date() >= new Date(nextTestAt)) : true;
+    return nextTestAt ? (new Date().getTime() >= new Date(nextTestAt).getTime()) : true;
   });
   const successCount = successDueCards.length;
 
@@ -1145,7 +1165,7 @@ function updateFlashCardCounts() {
             ...c,
             nextDate: nextDate
           };
-        }).filter(c => c.nextDate && c.nextDate > new Date())
+        }).filter(c => c.nextDate && c.nextDate.getTime() > new Date().getTime())
           .sort((a, b) => a.nextDate - b.nextDate);
 
         if (sorted.length > 0) {
@@ -1164,7 +1184,7 @@ function updateFlashCardCounts() {
 
           readyEl.innerHTML = `
             <div class="fc-ready-icon">⏳</div>
-            <p>복습 대기 중입니다.<br>다음 연습까지 남은 시간:<br><strong style="font-size: 1.25rem; color: #7AA2E3;">${timeStr}</strong></p>
+            <p>복습 대기 중입니다.<br>다음 연습까지 남은 시간:<br><strong class="countdown-timer-text" data-next-test-at="${earliest.toISOString()}" style="font-size: 1.25rem; color: #7AA2E3;">⏳ ${timeStr} 남음</strong></p>
           `;
         } else {
           readyEl.innerHTML = `
@@ -1418,7 +1438,7 @@ function startSuccessPractice() {
       const count = c.successCount || 1;
       nextTestAt = new Date(lastSuccess.getTime() + count * 30000);
     }
-    return nextTestAt ? (new Date() >= new Date(nextTestAt)) : true;
+    return nextTestAt ? (new Date().getTime() >= new Date(nextTestAt).getTime()) : true;
   }));
   fcSuccessIndex = 0;
   if (fcSuccessDeck.length === 0) {
