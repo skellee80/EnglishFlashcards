@@ -364,7 +364,7 @@ body.dark-mode .btn-secondary {
 
 .btn-primary {
   background-color: var(--primary-color);
-  color: var(--white);
+  color: #FFFFFF;
 }
 .btn-primary:hover:not(:disabled) {
   background-color: var(--primary-hover);
@@ -1819,7 +1819,7 @@ input:checked + .slider:before {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   padding-top: 4px;
 }
 

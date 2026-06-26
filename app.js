@@ -787,17 +787,8 @@ function renderReviewSection() {
       stageContainer.innerHTML = `<div class="empty-state-small" style="grid-column: 1 / -1;">비어 있음</div>`;
     } else {
       stageContainer.innerHTML = stageList.map((card, index) => {
-        const nextTestAt = parseDate(card.nextTestAt);
-        const isReady = nextTestAt ? (new Date() >= new Date(nextTestAt)) : true;
-        
-        if (isReady && i < 7) {
-          readyCardsCount.val++;
-        }
-
-        // 대기 중이면 시간 표시, 대기가 끝났으면 자가 채점 버튼(성공/실패) 활성화
-        // 단, 7단계 마스터 단계는 복습 대상이 아니므로 자가 채점 대신 완료 배지 고정 노출
         const isSpeedy = document.getElementById("toggle-speedy-mode")?.checked || false;
-        let finalNextTestAt = nextTestAt;
+        let finalNextTestAt = parseDate(card.nextTestAt);
         if (isSpeedy && card.lastSuccessAt) {
           const lastSuccess = new Date(parseDate(card.lastSuccessAt));
           const intervals = [10000, 20000, 30000, 40000, 50000, 60000];
@@ -805,7 +796,13 @@ function renderReviewSection() {
           finalNextTestAt = new Date(lastSuccess.getTime() + intervals[idx]);
         }
         const finalIsReady = finalNextTestAt ? (new Date() >= new Date(finalNextTestAt)) : true;
+        
+        if (finalIsReady && i < 7) {
+          readyCardsCount.val++;
+        }
 
+        // 대기 중이면 시간 표시, 대기가 끝났으면 자가 채점 버튼 대신 "복습 대기 완료" 라벨 노출 (플래시카드 탭에서 학습)
+        // 단, 7단계 마스터 단계는 복습 대상이 아니므로 완료 배지 고정 노출
         let controlsHtml = "";
         if (i === 7) {
           controlsHtml = `
@@ -815,13 +812,8 @@ function renderReviewSection() {
           `;
         } else if (finalIsReady) {
           controlsHtml = `
-            <div class="self-assess-btn-group">
-              <button class="btn-assess btn-assess-success" data-id="${card.id}">
-                성공 👍
-              </button>
-              <button class="btn-assess btn-assess-fail" data-id="${card.id}">
-                실패 👎
-              </button>
+            <div class="countdown-timer-text" style="color: #27ae60; font-weight: bold;">
+              ⏳ 복습 가능 (플래시카드)
             </div>
           `;
         } else {
@@ -1263,6 +1255,13 @@ function addFlashCardInputListeners() {
   safeAddListener('fail-fc-force-success', 'click', async () => {
     await handleFailCardCorrect();
   });
+  safeAddListener('fail-fc-next-btn', 'click', () => {
+    if (isCurrentFCAroundCorrect) {
+      handleFailCardCorrect();
+    } else {
+      handleFailCardWrong();
+    }
+  });
 
   // ---------- 성공 카드 ----------
   safeAddListener('success-fc-input', 'keypress', (e) => {
@@ -1277,6 +1276,13 @@ function addFlashCardInputListeners() {
   safeAddListener('success-fc-voice-btn', 'click', () => startVoiceRecognition('success'));
   safeAddListener('success-fc-force-success', 'click', async () => {
     await handleSuccessCardCorrect();
+  });
+  safeAddListener('success-fc-next-btn', 'click', () => {
+    if (isCurrentFCAroundCorrect) {
+      handleSuccessCardCorrect();
+    } else {
+      handleSuccessCardWrong();
+    }
   });
 }
 
@@ -1366,9 +1372,16 @@ function restartFailPractice() {
 
 // ---------- 성공 카드 연습 ----------
 function startSuccessPractice() {
+  const isSpeedy = document.getElementById("toggle-speedy-mode")?.checked || false;
   fcSuccessDeck = shuffleArray(patternCards.filter(c => {
     if (c.status !== 'success' || (c.successCount || 0) < 1 || (c.successCount || 0) >= 7) return false;
-    const nextTestAt = parseDate(c.nextTestAt);
+    let nextTestAt = parseDate(c.nextTestAt);
+    if (isSpeedy && c.lastSuccessAt) {
+      const lastSuccess = new Date(parseDate(c.lastSuccessAt));
+      const intervals = [10000, 20000, 30000, 40000, 50000, 60000];
+      const idx = Math.min((c.successCount || 1) - 1, intervals.length - 1);
+      nextTestAt = new Date(lastSuccess.getTime() + intervals[idx]);
+    }
     return nextTestAt ? (new Date() >= new Date(nextTestAt)) : true;
   }));
   fcSuccessIndex = 0;
@@ -1561,6 +1574,9 @@ function setupEventListeners() {
     if (isDark) {
       document.body.classList.add("dark-mode");
       updateDarkModeIcon(true);
+    } else {
+      document.body.classList.remove("dark-mode");
+      updateDarkModeIcon(false);
     }
     
     darkBtn.addEventListener("click", () => {
