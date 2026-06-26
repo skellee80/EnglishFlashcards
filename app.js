@@ -198,7 +198,6 @@ function renderNicknameList() {
   listContainer.innerHTML = nicknames.map(nick => `
     <div class="nickname-item-card" data-nick="${nick}">
       <div class="nickname-info">
-        <span class="nickname-avatar">🧸</span>
         <span>${nick}</span>
       </div>
       <button class="btn-delete-nickname" data-nick="${nick}" title="닉네임 삭제">
@@ -1241,7 +1240,7 @@ function updateFlashCardCounts() {
     if (successCount > 0) {
       startBtn.disabled = false;
       readyEl.innerHTML = `
-        <div class="fc-ready-icon">🌟</div>
+        <div class="fc-ready-icon">🪜</div>
         <p>성공한 카드를 직접 복습해요.<br>맞추면 <strong>다음 단계</strong>로, 틀리면 <strong>실패</strong>로 이동해요!</p>
       `;
     } else {
@@ -1249,7 +1248,7 @@ function updateFlashCardCounts() {
       const pendingSuccessCards = patternCards.filter(c => c.status === 'success' && (c.successCount || 0) < 7);
       if (pendingSuccessCards.length === 0) {
         readyEl.innerHTML = `
-          <div class="fc-ready-icon">🌟</div>
+          <div class="fc-ready-icon">🪜</div>
           <p>성공한 카드가 아직 없습니다.<br>암기장에 패턴 카드를 추가하고 성공을 체크해 보세요! ✨</p>
         `;
       } else {
@@ -1287,7 +1286,7 @@ function updateFlashCardCounts() {
           `;
         } else {
           readyEl.innerHTML = `
-            <div class="fc-ready-icon">🌟</div>
+            <div class="fc-ready-icon">🪜</div>
             <p>복습할 카드가 없습니다.<br>새로운 카드를 연습해보세요!</p>
           `;
         }

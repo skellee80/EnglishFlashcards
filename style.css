@@ -1043,6 +1043,11 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover {
   border-radius: 4px;
 }
 
+body.dark-mode .card-index {
+  color: #A8D4F0;
+  background-color: rgba(168, 212, 240, 0.15);
+}
+
 .card-actions-row {
   display: flex;
   gap: 6px;
