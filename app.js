@@ -18,6 +18,24 @@ let patternCardsUnsubscribe = null;
 let nicknamesUnsubscribe = null;
 let allNicknames = [];
 
+let shuffledMainSentences = null;
+let shuffledPatternCards = null;
+
+// Flash Card State
+let fcFailDeck = [];
+let fcFailIndex = 0;
+let fcSuccessDeck = [];
+let fcSuccessIndex = 0;
+
+function shuffleArray(array) {
+  const copy = [...array];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 // 닉네임 삭제 확인 타겟
 let targetNicknameToDelete = "";
 
@@ -89,11 +107,13 @@ function checkSession() {
     nickname = savedNickname;
     document.getElementById("user-display-name").innerText = nickname;
     document.getElementById("user-badge").style.display = "flex";
+    document.getElementById("btn-logout-header").style.display = "inline-flex";
     document.getElementById("auth-view").style.display = "none";
     document.getElementById("main-view").style.display = "block";
     startSync();
   } else {
     document.getElementById("user-badge").style.display = "none";
+    document.getElementById("btn-logout-header").style.display = "none";
     document.getElementById("auth-view").style.display = "flex";
     document.getElementById("main-view").style.display = "none";
     
@@ -320,6 +340,9 @@ function startSync() {
   if (mainSentencesUnsubscribe) mainSentencesUnsubscribe();
   if (patternCardsUnsubscribe) patternCardsUnsubscribe();
 
+  shuffledMainSentences = null;
+  shuffledPatternCards = null;
+
   if (isFirebaseActive && db) {
     const mainColRef = collection(db, "users", nickname, "mainSentences");
     mainSentencesUnsubscribe = onSnapshot(mainColRef, (snapshot) => {
@@ -354,6 +377,9 @@ function startSync() {
 
 function triggerLocalUpdate() {
   if (isFirebaseActive) return;
+
+  shuffledMainSentences = null;
+  shuffledPatternCards = null;
 
   const mainKey = `mock_mainSentences_${nickname}`;
   mainSentences = JSON.parse(localStorage.getItem(mainKey) || "[]");
@@ -470,7 +496,6 @@ async function deleteMainSentence(id) {
       selectedMainSentenceId = null;
       closePatternPanel();
     }
-    showToast("삭제 완료! ✨", "info");
   }
 }
 
@@ -487,7 +512,6 @@ async function deletePatternCard(id) {
       localStorage.setItem(patternKey, JSON.stringify(list));
       triggerLocalUpdate();
     }
-    showToast("삭제 완료! ✨", "info");
   }
 }
 
@@ -517,6 +541,13 @@ async function updatePatternCard(id, updates) {
 // 1. 대표 문장 카드 렌더링 (영어가 위에 크게 완전히 공개되어 보임, 한글이 밑에 작게)
 function renderMainSentences() {
   const container = document.getElementById("main-sentences-list");
+  
+  // 1. 헤더 옆에 총 개수 표시
+  const countEl = document.getElementById("main-sentences-count");
+  if (countEl) {
+    countEl.innerText = `(${mainSentences.length})`;
+  }
+
   if (mainSentences.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
@@ -525,12 +556,18 @@ function renderMainSentences() {
     return;
   }
 
-  container.innerHTML = mainSentences.map(sentence => {
+  // 셔블 순서가 지정되어 있으면 셔플 리스트를 사용하고, 그렇지 않으면 기본 정렬 리스트 사용
+  const listToRender = shuffledMainSentences || mainSentences;
+
+  container.innerHTML = listToRender.map((sentence, index) => {
     const isActive = sentence.id === selectedMainSentenceId ? "active" : "";
     return `
       <div class="sentence-card ${isActive}" data-id="${sentence.id}">
         <div class="card-top">
-          <span class="card-badge">대표 문장</span>
+          <div class="card-top-left">
+            <span class="card-index">#${index + 1}</span>
+            <span class="card-badge">대표 문장</span>
+          </div>
           <button class="btn-card-action btn-delete" data-id="${sentence.id}" title="삭제">
             <i data-lucide="trash-2"></i>
           </button>
@@ -574,13 +611,22 @@ function renderPatternCards() {
 
   const filteredCards = patternCards.filter(c => c.mainSentenceId === selectedMainSentenceId);
 
+  // 1. 헤더 옆에 총 개수 표시
+  const countEl = document.getElementById("pattern-cards-count");
+  if (countEl) {
+    countEl.innerText = `(${filteredCards.length})`;
+  }
+
   if (filteredCards.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
         <p>선택한 대표 문장에 속한 패턴 카드가 없습니다.<br>새 패턴 카드를 추가해 보세요!</p>
       </div>`;
   } else {
-    container.innerHTML = filteredCards.map(card => {
+    // 셔플 순서가 지정되어 있으면 셔플 리스트를 사용하고, 그렇지 않으면 기본 리스트 사용
+    const listToRender = shuffledPatternCards || filteredCards;
+
+    container.innerHTML = listToRender.map((card, index) => {
       let statusText = "신규";
       let badgeClass = "badge-new";
       if (card.status === 'success') {
@@ -594,7 +640,10 @@ function renderPatternCards() {
       return `
         <div class="sentence-card" id="card-${card.id}">
           <div class="card-top">
-            <span class="card-badge ${badgeClass}">${statusText}</span>
+            <div class="card-top-left">
+              <span class="card-index">#${index + 1}</span>
+              <span class="card-badge ${badgeClass}">${statusText}</span>
+            </div>
             <button class="btn-card-action btn-delete-pattern" data-id="${card.id}" title="삭제">
               <i data-lucide="trash-2"></i>
             </button>
@@ -637,6 +686,7 @@ function closePatternPanel() {
   document.getElementById("pattern-overlay-panel").classList.remove("active");
   document.getElementById("pattern-overlay-backdrop").classList.remove("active");
   selectedMainSentenceId = null;
+  shuffledPatternCards = null;
   // 대표 문장 리스트의 액티브 상태 제거
   document.querySelectorAll("#main-sentences-list .sentence-card").forEach(c => c.classList.remove("active"));
 }
@@ -651,10 +701,13 @@ function renderReviewSection() {
   if (failedList.length === 0) {
     failedContainer.innerHTML = `<div class="empty-state-small">실패한 카드가 없습니다. 참 잘하고 있어요! 🎉</div>`;
   } else {
-    failedContainer.innerHTML = failedList.map(card => `
+    failedContainer.innerHTML = failedList.map((card, index) => `
       <div class="sentence-card" id="card-${card.id}">
         <div class="card-top">
-          <span class="card-badge badge-fail">실패</span>
+          <div class="card-top-left">
+            <span class="card-index">#${index + 1}</span>
+            <span class="card-badge badge-fail">실패</span>
+          </div>
           <button class="btn-card-action btn-delete-pattern" data-id="${card.id}">
             <i data-lucide="trash-2"></i>
           </button>
@@ -682,14 +735,18 @@ function renderReviewSection() {
     `).join("");
   }
 
-  // 성공한 카드 (1회 ~ 6회 이상 단계)
+  // 성공한 카드 (1회 ~ 7회 마스터 단계)
   const readyCardsCount = { val: 0 };
   
-  for (let i = 1; i <= 6; i++) {
+  for (let i = 1; i <= 7; i++) {
     const stageContainer = document.getElementById(`success-stage-${i}`);
+    if (!stageContainer) continue;
+
     let stageList = [];
-    if (i === 6) {
-      stageList = patternCards.filter(c => c.status === 'success' && c.successCount >= 6);
+    if (i === 7) {
+      stageList = patternCards.filter(c => c.status === 'success' && c.successCount >= 7);
+    } else if (i === 6) {
+      stageList = patternCards.filter(c => c.status === 'success' && c.successCount === 6);
     } else {
       stageList = patternCards.filter(c => c.status === 'success' && c.successCount === i);
     }
@@ -697,34 +754,51 @@ function renderReviewSection() {
     if (stageList.length === 0) {
       stageContainer.innerHTML = `<div class="empty-state-small" style="grid-column: 1 / -1;">비어 있음</div>`;
     } else {
-      stageContainer.innerHTML = stageList.map(card => {
+      stageContainer.innerHTML = stageList.map((card, index) => {
         const nextTestAt = parseDate(card.nextTestAt);
         const isReady = nextTestAt ? (new Date() >= new Date(nextTestAt)) : true;
         
-        if (isReady) {
+        if (isReady && i < 7) {
           readyCardsCount.val++;
         }
 
         // 대기 중이면 시간 표시, 대기가 끝났으면 자가 채점 버튼(성공/실패) 활성화
-        const controlsHtml = isReady ? `
-          <div class="self-assess-btn-group">
-            <button class="btn-assess btn-assess-success" data-id="${card.id}">
-              성공 👍
-            </button>
-            <button class="btn-assess btn-assess-fail" data-id="${card.id}">
-              실패 👎
-            </button>
-          </div>
-        ` : `
-          <div class="countdown-timer-text" data-next-test-at="${nextTestAt ? new Date(nextTestAt).toISOString() : ''}">
-            ⏳ 계산 중...
-          </div>
-        `;
+        // 단, 7단계 마스터 단계는 복습 대상이 아니므로 자가 채점 대신 완료 배지 고정 노출
+        let controlsHtml = "";
+        if (i === 7) {
+          controlsHtml = `
+            <div class="countdown-timer-text" style="color: #3F6EB8;">
+              🏆 마스터 완료!
+            </div>
+          `;
+        } else if (isReady) {
+          controlsHtml = `
+            <div class="self-assess-btn-group">
+              <button class="btn-assess btn-assess-success" data-id="${card.id}">
+                성공 👍
+              </button>
+              <button class="btn-assess btn-assess-fail" data-id="${card.id}">
+                실패 👎
+              </button>
+            </div>
+          `;
+        } else {
+          controlsHtml = `
+            <div class="countdown-timer-text" data-next-test-at="${nextTestAt ? new Date(nextTestAt).toISOString() : ''}">
+              ⏳ 계산 중...
+            </div>
+          `;
+        }
+
+        const badgeText = i === 7 ? "🏆 마스터" : `${card.successCount}회 성공`;
 
         return `
           <div class="sentence-card" id="card-${card.id}">
             <div class="card-top">
-              <span class="card-badge badge-success">${card.successCount}회 성공</span>
+              <div class="card-top-left">
+                <span class="card-index">#${index + 1}</span>
+                <span class="card-badge badge-success">${badgeText}</span>
+              </div>
               <button class="btn-card-action btn-delete-pattern" data-id="${card.id}">
                 <i data-lucide="trash-2"></i>
               </button>
@@ -754,6 +828,9 @@ function renderReviewSection() {
 
   lucide.createIcons();
   setupPatternCardEvents();
+
+  // 플래시카드 탭의 카드 수 갱신
+  updateFlashCardCounts();
 }
 
 // 4. 타이머 카운트다운 로직
@@ -799,17 +876,8 @@ function calculateNextTestTime(successCount, isSpeedy) {
   let msToAdd = 0;
 
   if (isSpeedy) {
-    // 가속 복습 주기: 10초, 30초, 1분, 2분, 5분, 10분
-    const speedyIntervals = [
-      10 * 1000,
-      30 * 1000,
-      60 * 1000,
-      120 * 1000,
-      300 * 1000,
-      600 * 1000
-    ];
-    const idx = Math.min(successCount - 1, speedyIntervals.length - 1);
-    msToAdd = speedyIntervals[idx];
+    // 가속 복습 주기: 테스트 편의를 위해 즉시(0초) 대기로 변경하여 연속 성공 유도
+    msToAdd = 0;
   } else {
     // 실제 주기: 2주, 1달, 3달, 6달, 1년, 2년
     const DAY = 24 * 60 * 60 * 1000;
@@ -845,7 +913,6 @@ async function handleSelfAssessment(cardId, outcome) {
       lastSuccessAt: new Date(),
       nextTestAt: nextTest
     });
-    showToast(`성공! 다음 복습 일정으로 이동합니다. (성공 ${newSuccessCount}회차)`, "success");
   } else {
     // 실패 시 0회 성공으로 리셋 후 실패로 상태 변환
     await updatePatternCard(card.id, {
@@ -854,7 +921,6 @@ async function handleSelfAssessment(cardId, outcome) {
       lastSuccessAt: null,
       nextTestAt: null
     });
-    showToast("실패로 처리되어 복습 보관함의 실패 섹션으로 이동했습니다.", "error");
   }
 
   // 만약 현재 패턴 패널에 떠 있다면 패턴 카드 리스트 갱신
@@ -930,7 +996,6 @@ function startInputVoice(targetInputId, lang = "ko-KR") {
       text = capitalizeEnglish(text);
     }
     document.getElementById(targetInputId).value = text;
-    showToast(`음성 인식 성공: "${text}"`, "success");
   };
 
   recognition.onerror = (e) => {
@@ -947,14 +1012,325 @@ function startInputVoice(targetInputId, lang = "ko-KR") {
 }
 
 // ==================== EVENT LISTENERS SETUP ====================
+function safeAddListener(id, event, callback) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener(event, callback);
+  } else {
+    console.warn(`Element with id "${id}" was not found in the DOM.`);
+  }
+}
+
+// ==================== FLASH CARDS ====================
+function updateFlashCardCounts() {
+  const failCount = patternCards.filter(c => c.status === 'fail').length;
+  const successCount = patternCards.filter(c => c.status === 'success' && (c.successCount || 0) < 7).length;
+  const failBadge = document.getElementById('fail-fc-count');
+  const successBadge = document.getElementById('success-fc-count');
+  if (failBadge) failBadge.textContent = `${failCount}장`;
+  if (successBadge) successBadge.textContent = `${successCount}장`;
+}
+
+// ---------- 실패 카드 연습 ----------
+function startFailPractice() {
+  fcFailDeck = shuffleArray(patternCards.filter(c => c.status === 'fail'));
+  fcFailIndex = 0;
+  if (fcFailDeck.length === 0) {
+    showToast('연습할 실패 카드가 없어요! 👍', 'info');
+    return;
+  }
+  showFailFCCard();
+}
+
+// ==================== FLASH CARD INPUT & AUTO ADVANCE ====================
+// Helper to evaluate typed or voice answer
+function evaluateAnswer(section, userAnswer) {
+  const card = section === 'fail' ? fcFailDeck[fcFailIndex] : fcSuccessDeck[fcSuccessIndex];
+  if (!card) return;
+  const normalized = userAnswer.trim().toLowerCase();
+  const correct = normalized === card.english.trim().toLowerCase();
+
+  // Show feedback and unblur english
+  const feedbackEl = document.getElementById(`${section}-fc-feedback`);
+  const englishEl  = document.getElementById(`${section}-fc-english`);
+  const assessRow  = document.getElementById(`${section}-fc-assess-row`);
+
+  if (englishEl) englishEl.classList.remove('blurred');
+  if (feedbackEl) {
+    feedbackEl.textContent = correct ? '🎉 정답입니다!' : `❌ 오답 — 정답: "${card.english}"`;
+    feedbackEl.className   = `fc-feedback ${correct ? 'correct' : 'wrong'}`;
+  }
+  if (assessRow) assessRow.style.display = 'flex';
+
+  const autoAdvance = document.getElementById(`${section}-fc-auto-advance`)?.checked;
+  const proceed = () => {
+    if (correct) {
+      section === 'fail' ? handleFailCardCorrect() : handleSuccessCardCorrect();
+    } else {
+      section === 'fail' ? handleFailCardWrong() : handleSuccessCardWrong();
+    }
+  };
+
+  if (autoAdvance) {
+    const countdownEl = document.getElementById(`${section}-fc-countdown`);
+    let remaining = 3;
+    if (countdownEl) {
+      countdownEl.textContent = `다음 카드까지 ${remaining}초`;
+      countdownEl.style.display = 'block';
+    }
+    const timer = setInterval(() => {
+      remaining -= 1;
+      if (countdownEl) countdownEl.textContent = `다음 카드까지 ${remaining}초`;
+      if (remaining <= 0) {
+        clearInterval(timer);
+        if (countdownEl) countdownEl.style.display = 'none';
+        proceed();
+      }
+    }, 1000);
+  } else {
+    // Manual mode: just show buttons, don't auto-proceed
+  }
+}
+
+
+// Voice recognition helper (Web Speech API)
+function startVoiceRecognition(section) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    showToast('음성 인식이 지원되지 않는 브라우저입니다.', 'warning');
+    return;
+  }
+  const recog = new SpeechRecognition();
+  recog.lang = 'en-US';
+  recog.interimResults = false;
+  recog.maxAlternatives = 1;
+
+  recog.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    const inputEl = document.getElementById(`${section}-fc-input`);
+    if (inputEl) inputEl.value = transcript;
+    evaluateAnswer(section, transcript);
+  };
+  recog.onerror = (e) => {
+    showToast('음성 인식 오류: ' + e.error, 'warning');
+  };
+  recog.start();
+}
+
+// Event listeners for answer input & voice (added to setupEventListeners)
+function addFlashCardInputListeners() {
+  // ---------- 실패 카드 ----------
+  safeAddListener('fail-fc-input', 'keypress', (e) => {
+    if (e.key === 'Enter') {
+      evaluateAnswer('fail', e.target.value);
+    }
+  });
+  safeAddListener('fail-fc-voice-btn', 'click', () => startVoiceRecognition('fail'));
+  safeAddListener('fail-fc-force-success', 'click', () => evaluateAnswer('fail', fcFailDeck[fcFailIndex].english));
+
+  // ---------- 성공 카드 ----------
+  safeAddListener('success-fc-input', 'keypress', (e) => {
+    if (e.key === 'Enter') {
+      evaluateAnswer('success', e.target.value);
+    }
+  });
+  safeAddListener('success-fc-voice-btn', 'click', () => startVoiceRecognition('success'));
+  safeAddListener('success-fc-force-success', 'click', () => evaluateAnswer('success', fcSuccessDeck[fcSuccessIndex].english));
+}
+
+function showFailFCCard() {
+  const readyEl  = document.getElementById('fail-fc-ready');
+  const arenaEl  = document.getElementById('fail-fc-arena');
+  const doneEl   = document.getElementById('fail-fc-done');
+  const startBtn = document.getElementById('btn-start-fail-fc');
+
+  if (readyEl)  readyEl.style.display  = 'none';
+  if (startBtn) startBtn.style.display = 'none';
+
+  if (fcFailIndex >= fcFailDeck.length) {
+    if (arenaEl) arenaEl.style.display = 'none';
+    if (doneEl)  doneEl.style.display  = 'flex';
+    updateFlashCardCounts();
+    return;
+  }
+
+  if (arenaEl) arenaEl.style.display = 'block';
+  if (doneEl)  doneEl.style.display  = 'none';
+
+  const card    = fcFailDeck[fcFailIndex];
+  const total   = fcFailDeck.length;
+  const current = fcFailIndex + 1;
+
+  const progressEl  = document.getElementById('fail-fc-progress');
+  const fillEl      = document.getElementById('fail-fc-fill');
+  const koreanEl    = document.getElementById('fail-fc-korean');
+  const englishEl   = document.getElementById('fail-fc-english');
+  const assessRow   = document.getElementById('fail-fc-assess-row');
+  const feedbackEl  = document.getElementById('fail-fc-feedback');
+  const inputEl     = document.getElementById('fail-fc-input');
+  const countdownEl = document.getElementById('fail-fc-countdown');
+
+  if (progressEl)  progressEl.textContent = `${current} / ${total}`;
+  if (fillEl)      fillEl.style.width     = `${((current - 1) / total) * 100}%`;
+  if (koreanEl)    koreanEl.textContent   = card.korean;
+  if (englishEl)   { englishEl.textContent = card.english; englishEl.classList.add('blurred'); }
+  if (assessRow)   assessRow.style.display = 'none';
+  if (feedbackEl)  { feedbackEl.textContent = ''; feedbackEl.className = 'fc-feedback'; }
+  if (inputEl)     inputEl.value = '';
+  if (countdownEl) countdownEl.style.display = 'none';
+
+  lucide.createIcons();
+}
+
+function revealFailCard() {
+  // kept for backward compatibility but not called from HTML anymore
+  const englishEl = document.getElementById('fail-fc-english');
+  const assessRow = document.getElementById('fail-fc-assess-row');
+  if (englishEl) englishEl.classList.remove('blurred');
+  if (assessRow) assessRow.style.display = 'flex';
+}
+
+async function handleFailCardCorrect() {
+  const card = fcFailDeck[fcFailIndex];
+  if (!card) return;
+  const nextTest = calculateNextTestTime(1, false);
+  await updatePatternCard(card.id, {
+    status: 'success',
+    successCount: 1,
+    lastSuccessAt: new Date(),
+    nextTestAt: nextTest
+  });
+  fcFailIndex++;
+  showFailFCCard();
+}
+
+function handleFailCardWrong() {
+  fcFailIndex++;
+  showFailFCCard();
+}
+
+function restartFailPractice() {
+  const readyEl  = document.getElementById('fail-fc-ready');
+  const arenaEl  = document.getElementById('fail-fc-arena');
+  const doneEl   = document.getElementById('fail-fc-done');
+  const startBtn = document.getElementById('btn-start-fail-fc');
+  if (readyEl)  readyEl.style.display  = 'flex';
+  if (arenaEl)  arenaEl.style.display  = 'none';
+  if (doneEl)   doneEl.style.display   = 'none';
+  if (startBtn) startBtn.style.display = 'block';
+  updateFlashCardCounts();
+}
+
+// ---------- 성공 카드 연습 ----------
+function startSuccessPractice() {
+  fcSuccessDeck = shuffleArray(patternCards.filter(c => c.status === 'success' && (c.successCount || 0) < 7));
+  fcSuccessIndex = 0;
+  if (fcSuccessDeck.length === 0) {
+    showToast('연습할 성공 카드가 없어요! 먼저 복습 보관함에 카드를 추가해 보세요 ✨', 'info');
+    return;
+  }
+  showSuccessFCCard();
+}
+
+function showSuccessFCCard() {
+  const readyEl  = document.getElementById('success-fc-ready');
+  const arenaEl  = document.getElementById('success-fc-arena');
+  const doneEl   = document.getElementById('success-fc-done');
+  const startBtn = document.getElementById('btn-start-success-fc');
+
+  if (readyEl)  readyEl.style.display  = 'none';
+  if (startBtn) startBtn.style.display = 'none';
+
+  if (fcSuccessIndex >= fcSuccessDeck.length) {
+    if (arenaEl) arenaEl.style.display = 'none';
+    if (doneEl)  doneEl.style.display  = 'flex';
+    return;
+  }
+
+  if (arenaEl) arenaEl.style.display = 'block';
+  if (doneEl)  doneEl.style.display  = 'none';
+
+  const card    = fcSuccessDeck[fcSuccessIndex];
+  const total   = fcSuccessDeck.length;
+  const current = fcSuccessIndex + 1;
+
+  const progressEl  = document.getElementById('success-fc-progress');
+  const fillEl      = document.getElementById('success-fc-fill');
+  const koreanEl    = document.getElementById('success-fc-korean');
+  const englishEl   = document.getElementById('success-fc-english');
+  const assessRow   = document.getElementById('success-fc-assess-row');
+  const feedbackEl  = document.getElementById('success-fc-feedback');
+  const inputEl     = document.getElementById('success-fc-input');
+  const countdownEl = document.getElementById('success-fc-countdown');
+
+  if (progressEl)  progressEl.textContent = `${current} / ${total}`;
+  if (fillEl)      fillEl.style.width     = `${((current - 1) / total) * 100}%`;
+  if (koreanEl)    koreanEl.textContent   = card.korean;
+  if (englishEl)   { englishEl.textContent = card.english; englishEl.classList.add('blurred'); }
+  if (assessRow)   assessRow.style.display = 'none';
+  if (feedbackEl)  { feedbackEl.textContent = ''; feedbackEl.className = 'fc-feedback'; }
+  if (inputEl)     inputEl.value = '';
+  if (countdownEl) countdownEl.style.display = 'none';
+
+  lucide.createIcons();
+}
+
+function revealSuccessCard() {
+  // kept for backward compatibility
+  const englishEl = document.getElementById('success-fc-english');
+  const assessRow = document.getElementById('success-fc-assess-row');
+  if (englishEl) englishEl.classList.remove('blurred');
+  if (assessRow) assessRow.style.display = 'flex';
+}
+
+async function handleSuccessCardCorrect() {
+  const card = fcSuccessDeck[fcSuccessIndex];
+  if (!card) return;
+  const newSuccessCount = Math.min((card.successCount || 0) + 1, 7);
+  const nextTest = calculateNextTestTime(newSuccessCount, false);
+  await updatePatternCard(card.id, {
+    status: 'success',
+    successCount: newSuccessCount,
+    lastSuccessAt: new Date(),
+    nextTestAt: nextTest
+  });
+  fcSuccessIndex++;
+  showSuccessFCCard();
+}
+
+async function handleSuccessCardWrong() {
+  const card = fcSuccessDeck[fcSuccessIndex];
+  if (!card) return;
+  await updatePatternCard(card.id, {
+    status: 'fail',
+    successCount: 0,
+    lastSuccessAt: null,
+    nextTestAt: null
+  });
+  fcSuccessIndex++;
+  showSuccessFCCard();
+}
+
+function restartSuccessPractice() {
+  const readyEl  = document.getElementById('success-fc-ready');
+  const arenaEl  = document.getElementById('success-fc-arena');
+  const doneEl   = document.getElementById('success-fc-done');
+  const startBtn = document.getElementById('btn-start-success-fc');
+  if (readyEl)  readyEl.style.display  = 'flex';
+  if (arenaEl)  arenaEl.style.display  = 'none';
+  if (doneEl)   doneEl.style.display   = 'none';
+  if (startBtn) startBtn.style.display = 'block';
+  updateFlashCardCounts();
+}
+
 function setupEventListeners() {
   // 1. 닉네임 입력 후 엔터 쳤을 때
-  document.getElementById("input-nickname").addEventListener("keypress", (e) => {
+  safeAddListener("input-nickname", "keypress", (e) => {
     if (e.key === "Enter") handleAddNickname();
   });
   
   // 닉네임 입력란에 타핑 시 실시간으로 입장하기 버튼 노출 여부 제어
-  document.getElementById("input-nickname").addEventListener("input", (e) => {
+  safeAddListener("input-nickname", "input", (e) => {
     const value = e.target.value.trim();
     const loginBtn = document.getElementById("btn-login");
     const nicknames = allNicknames;
@@ -967,7 +1343,7 @@ function setupEventListeners() {
   });
   
   // 닉네임 추가 플러스 단추 클릭
-  document.getElementById("btn-add-nickname-submit").addEventListener("click", handleAddNickname);
+  safeAddListener("btn-add-nickname-submit", "click", handleAddNickname);
 
   // 닉네임 입장하기 단추 클릭 (닉네임 없을 때만 노출)
   const loginBtn = document.getElementById("btn-login");
@@ -975,28 +1351,32 @@ function setupEventListeners() {
     loginBtn.addEventListener("click", handleAddNickname);
   }
 
-  // 2. 로그아웃
-  document.getElementById("btn-logout").addEventListener("click", handleLogout);
+  // 2. 로그아웃 (헤더 나가기 버튼)
+  safeAddListener("btn-logout-header", "click", handleLogout);
 
   // 3. 닉네임 삭제 확인용 입력 텍스트 리스너
-  document.getElementById("input-delete-nickname-confirm").addEventListener("input", handleNicknameDeleteConfirmText);
-  document.getElementById("btn-confirm-delete-nickname").addEventListener("click", executeNicknameDeletion);
+  safeAddListener("input-delete-nickname-confirm", "input", handleNicknameDeleteConfirmText);
+  safeAddListener("btn-confirm-delete-nickname", "click", executeNicknameDeletion);
   
   // 닉네임 삭제 취소 바인딩
-  document.getElementById("btn-close-delete-nickname-modal").addEventListener("click", () => closeModal("modal-delete-nickname"));
-  document.getElementById("btn-cancel-delete-nickname-modal").addEventListener("click", () => closeModal("modal-delete-nickname"));
+  safeAddListener("btn-close-delete-nickname-modal", "click", () => closeModal("modal-delete-nickname"));
+  safeAddListener("btn-cancel-delete-nickname-modal", "click", () => closeModal("modal-delete-nickname"));
 
   // 4. 대표 문장 모달 컨트롤
-  document.getElementById("btn-add-main").addEventListener("click", () => {
-    document.getElementById("main-ko").value = "";
-    document.getElementById("main-en").value = "";
+  safeAddListener("btn-add-main", "click", () => {
+    const koEl = document.getElementById("main-ko");
+    const enEl = document.getElementById("main-en");
+    if (koEl) koEl.value = "";
+    if (enEl) enEl.value = "";
     openModal("modal-add-main");
   });
-  document.getElementById("btn-close-add-main-modal").addEventListener("click", () => closeModal("modal-add-main"));
-  document.getElementById("btn-cancel-add-main-modal").addEventListener("click", () => closeModal("modal-add-main"));
-  document.getElementById("btn-save-main").addEventListener("click", async () => {
-    const ko = document.getElementById("main-ko").value.trim();
-    const en = document.getElementById("main-en").value.trim();
+  safeAddListener("btn-close-add-main-modal", "click", () => closeModal("modal-add-main"));
+  safeAddListener("btn-cancel-add-main-modal", "click", () => closeModal("modal-add-main"));
+  safeAddListener("btn-save-main", "click", async () => {
+    const koEl = document.getElementById("main-ko");
+    const enEl = document.getElementById("main-en");
+    const ko = koEl ? koEl.value.trim() : "";
+    const en = enEl ? enEl.value.trim() : "";
     if (!ko || !en) {
       showToast("한글 뜻과 영어 문장을 모두 입력해 주세요.", "error");
       return;
@@ -1006,19 +1386,24 @@ function setupEventListeners() {
   });
 
   // 5. 패턴 카드 모달 컨트롤
-  document.getElementById("btn-add-pattern").addEventListener("click", () => {
+  safeAddListener("btn-add-pattern", "click", () => {
     const activeMain = mainSentences.find(s => s.id === selectedMainSentenceId);
     if (!activeMain) return;
-    document.getElementById("add-pattern-parent-desc").innerText = `대표 문장: "${activeMain.english}"`;
-    document.getElementById("pattern-ko").value = "";
-    document.getElementById("pattern-en").value = "";
+    const descEl = document.getElementById("add-pattern-parent-desc");
+    if (descEl) descEl.innerText = `대표 문장: "${activeMain.english}"`;
+    const koEl = document.getElementById("pattern-ko");
+    const enEl = document.getElementById("pattern-en");
+    if (koEl) koEl.value = "";
+    if (enEl) enEl.value = "";
     openModal("modal-add-pattern");
   });
-  document.getElementById("btn-close-add-pattern-modal").addEventListener("click", () => closeModal("modal-add-pattern"));
-  document.getElementById("btn-cancel-add-pattern-modal").addEventListener("click", () => closeModal("modal-add-pattern"));
-  document.getElementById("btn-save-pattern").addEventListener("click", async () => {
-    const ko = document.getElementById("pattern-ko").value.trim();
-    const en = document.getElementById("pattern-en").value.trim();
+  safeAddListener("btn-close-add-pattern-modal", "click", () => closeModal("modal-add-pattern"));
+  safeAddListener("btn-cancel-add-pattern-modal", "click", () => closeModal("modal-add-pattern"));
+  safeAddListener("btn-save-pattern", "click", async () => {
+    const koEl = document.getElementById("pattern-ko");
+    const enEl = document.getElementById("pattern-en");
+    const ko = koEl ? koEl.value.trim() : "";
+    const en = enEl ? enEl.value.trim() : "";
     if (!ko || !en) {
       showToast("한글 뜻과 영어 문장을 모두 입력해 주세요.", "error");
       return;
@@ -1044,7 +1429,8 @@ function setupEventListeners() {
       
       btn.classList.add("active");
       const tabId = btn.dataset.tab;
-      document.getElementById(tabId).classList.add("active");
+      const tabEl = document.getElementById(tabId);
+      if (tabEl) tabEl.classList.add("active");
 
       // 다른 탭으로 이동할 때 우측 패턴 패널이 열려있다면 닫아줍니다.
       if (tabId !== "tab-deck") {
@@ -1054,22 +1440,50 @@ function setupEventListeners() {
   });
 
   // 8. 가속 모드 변경 시 즉시 렌더링 갱신
-  document.getElementById("toggle-speedy-mode").addEventListener("change", () => {
+  safeAddListener("toggle-speedy-mode", "change", () => {
     renderReviewSection();
-    showToast(document.getElementById("toggle-speedy-mode").checked ? 
+    const speedyEl = document.getElementById("toggle-speedy-mode");
+    const isChecked = speedyEl ? speedyEl.checked : false;
+    showToast(isChecked ? 
       "테스트용 가속 복습 모드가 활성화되었습니다! ⚡" : "복습 모드가 실서비스 모드로 복귀했습니다.", "info");
   });
 
   // 9. 패턴 패널 닫기 버튼 및 뒷배경 클릭 처리
-  document.getElementById("btn-close-pattern-panel").addEventListener("click", closePatternPanel);
-  document.getElementById("pattern-overlay-backdrop").addEventListener("click", closePatternPanel);
+  safeAddListener("btn-close-pattern-panel", "click", closePatternPanel);
+  safeAddListener("pattern-overlay-backdrop", "click", closePatternPanel);
 
-  // 10. 패턴 패널 좌우 스와이프 시 닫고 대표 카드로 복귀
+  // 10. 패턴 패널 좌우 스와이프 시 닫고 대표 카드로 복귀 (알림 팝업 제거)
   const panel = document.getElementById("pattern-overlay-panel");
-  registerSwipe(panel, () => {
-    closePatternPanel();
-    showToast("대표 문장 목록으로 돌아왔습니다! 🌸", "info");
+  if (panel) {
+    registerSwipe(panel, () => {
+      closePatternPanel();
+    });
+  }
+
+  // 11. 순서 섞기 (셔플) 버튼 바인딩
+  safeAddListener("btn-shuffle-main", "click", () => {
+    shuffledMainSentences = shuffleArray(mainSentences);
+    renderMainSentences();
   });
+
+  safeAddListener("btn-shuffle-pattern", "click", () => {
+    const filtered = patternCards.filter(c => c.mainSentenceId === selectedMainSentenceId);
+    shuffledPatternCards = shuffleArray(filtered);
+    renderPatternCards();
+  });
+
+  // 12. 플래시카드 이벤트 바인딩
+  safeAddListener('btn-start-fail-fc',    'click', startFailPractice);
+  safeAddListener('fail-fc-reveal-btn',   'click', revealFailCard);
+  safeAddListener('fail-fc-correct-btn',  'click', handleFailCardCorrect);
+  safeAddListener('fail-fc-wrong-btn',    'click', handleFailCardWrong);
+  safeAddListener('fail-fc-restart-btn',  'click', restartFailPractice);
+
+  safeAddListener('btn-start-success-fc',   'click', startSuccessPractice);
+  safeAddListener('success-fc-reveal-btn',  'click', revealSuccessCard);
+  safeAddListener('success-fc-correct-btn', 'click', handleSuccessCardCorrect);
+  safeAddListener('success-fc-wrong-btn',   'click', handleSuccessCardWrong);
+  safeAddListener('success-fc-restart-btn', 'click', restartSuccessPractice);
 }
 
 // ---------------- CARD INTERACTIONS ----------------
@@ -1159,7 +1573,6 @@ function setupMainSentenceCardClicks() {
         document.querySelectorAll("#main-sentences-list .sentence-card").forEach(c => c.classList.remove("active"));
         card.classList.add("active");
         renderPatternCards();
-        showToast("패턴 카드로 들어왔습니다! 💡", "success");
       }
     };
 
@@ -1217,12 +1630,43 @@ function setupPatternCardEvents() {
     });
   });
 
-  // 영어 텍스트 블러 토글
-  document.querySelectorAll(".card-english").forEach(el => {
-    el.addEventListener("click", (e) => {
-      e.stopPropagation();
-      el.classList.toggle("blurred");
+  // 패턴 카드 및 복습 카드의 hold-to-reveal (롱클릭/홀드 시 공개) 동작 바인딩
+  document.querySelectorAll(".pattern-overlay-panel .sentence-card, #failed-cards-list .sentence-card, .success-groups-container .sentence-card").forEach(card => {
+    const enText = card.querySelector(".card-english");
+    if (!enText) return;
+
+    let isDown = false;
+
+    const revealEnglish = (e) => {
+      if (e.target.closest(".btn-delete-pattern") || e.target.closest(".btn-speak") || e.target.closest("button")) return;
+      enText.classList.remove("blurred");
+    };
+
+    const blurEnglish = () => {
+      enText.classList.add("blurred");
+    };
+
+    card.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".btn-delete-pattern") || e.target.closest(".btn-speak") || e.target.closest("button")) return;
+      revealEnglish(e);
+      isDown = true;
     });
+
+    card.addEventListener("touchstart", (e) => {
+      if (e.target.closest(".btn-delete-pattern") || e.target.closest(".btn-speak") || e.target.closest("button")) return;
+      revealEnglish(e);
+      isDown = true;
+    }, { passive: true });
+
+    const handleEnd = () => {
+      if (!isDown) return;
+      isDown = false;
+      blurEnglish();
+    };
+
+    window.addEventListener("mouseup", handleEnd);
+    card.addEventListener("touchend", handleEnd, { passive: true });
+    card.addEventListener("touchcancel", handleEnd);
   });
 
   // 자가 채점 성공/실패 버튼 클릭 바인딩

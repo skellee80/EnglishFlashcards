@@ -11,7 +11,7 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- CSS Stylesheet -->
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=1.0.6">
 </head>
 <body>
 
@@ -28,16 +28,16 @@
     <!-- 헤더 -->
     <header class="app-header">
       <div class="header-logo">
-        <span class="logo-emoji">🌸</span>
+        <span class="logo-abc">ABC</span>
         <h1>소소한 가족 영어 놀이터</h1>
+        <button id="btn-logout-header" class="btn-logout-header" title="다른 닉네임으로 접속" style="display: none;">
+          <i data-lucide="door-open"></i>
+        </button>
       </div>
       <div class="header-actions">
         <div class="user-profile-badge" id="user-badge" style="display: none;">
           <span class="avatar">🧸</span>
           <span id="user-display-name" class="username">닉네임</span>
-          <button id="btn-logout" class="btn-logout-small" title="다른 닉네임으로 접속">
-            <i data-lucide="log-out"></i>
-          </button>
         </div>
       </div>
     </header>
@@ -75,6 +75,9 @@
         <button class="tab-button active" data-tab="tab-deck">
           <i data-lucide="book-open"></i> 나의 암기장
         </button>
+        <button class="tab-button" data-tab="tab-flashcards">
+          <i data-lucide="zap"></i> 플래시카드
+        </button>
         <button class="tab-button" data-tab="tab-review">
           <i data-lucide="calendar"></i> 복습 보관함
           <span class="badge-count" id="review-count-badge">0</span>
@@ -88,10 +91,18 @@
           <!-- 대표 문장 영역 -->
           <div class="deck-column main-sentences-column full-width">
             <div class="column-header">
-              <h3><span class="emoji">⭐</span> 대표 문장 리스트</h3>
-              <button id="btn-add-main" class="btn btn-primary btn-sm">
-                <i data-lucide="plus"></i> 대표 문장 추가
-              </button>
+              <h3>
+                <span class="emoji">⭐</span> 대표 문장 리스트
+                <span class="header-count" id="main-sentences-count">(0)</span>
+              </h3>
+              <div class="header-buttons-row">
+                <button id="btn-shuffle-main" class="btn-header-action" title="순서 섞기">
+                  <i data-lucide="shuffle"></i>
+                </button>
+                <button id="btn-add-main" class="btn btn-primary btn-sm">
+                  <i data-lucide="plus"></i> 대표 문장 추가
+                </button>
+              </div>
             </div>
             <div class="sentences-list-container" id="main-sentences-list">
               <!-- 대표 문장 카드가 동적으로 로드되는 곳 -->
@@ -104,7 +115,128 @@
         </div>
       </section>
 
-      <!-- 탭 2: 복습 보관함 (실패 카드 및 성공 횟수별 복습 카드) -->
+      <!-- 탭 2: 플래시카드 연습 -->
+      <section id="tab-flashcards" class="tab-section">
+        <div class="fc-layout">
+
+          <!-- 실패 카드 연습 -->
+          <div class="fc-section">
+            <div class="fc-section-header">
+              <div class="fc-title-row">
+                <h3><span class="emoji">🔥</span> 실패 카드 연습</h3>
+                <span class="fc-count-badge" id="fail-fc-count">0장</span>
+              </div>
+              <button id="btn-start-fail-fc" class="btn btn-danger btn-sm">시작하기 ▶</button>
+            </div>
+
+            <div class="fc-ready-state" id="fail-fc-ready">
+              <div class="fc-ready-icon">🎴</div>
+              <p>실패한 카드를 한 장씩 보며 연습해요.<br>정답을 맞추면 <strong>1회 성공</strong>으로 이동해요! 🌱</p>
+            </div>
+
+            <div class="fc-arena" id="fail-fc-arena">
+              <div class="fc-progress-wrap">
+                <span class="fc-progress-text" id="fail-fc-progress">0 / 0</span>
+                <div class="fc-progress-bar"><div class="fc-progress-fill" id="fail-fc-fill"></div></div>
+              </div>
+              <div class="fc-card">
+                <div class="fc-card-korean" id="fail-fc-korean"></div>
+                <div class="fc-card-english blurred" id="fail-fc-english"></div>
+                <div class="fc-input-panel">
+                  <div class="fc-input-wrap">
+                    <input type="text" id="fail-fc-input" class="fc-input" placeholder="영어로 입력 후 Enter…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+                    <button id="fail-fc-voice-btn" class="fc-voice-btn" title="음성 입력"><i data-lucide="mic"></i></button>
+                  </div>
+                  <div class="fc-feedback" id="fail-fc-feedback"></div>
+                  <div class="fc-assess-row" id="fail-fc-assess-row">
+                    <button class="btn-assess btn-assess-fail" id="fail-fc-wrong-btn">❌ 몰랐어요</button>
+                    <button class="btn-assess btn-assess-success" id="fail-fc-correct-btn">✅ 알았어요!</button>
+                  </div>
+                  <div class="fc-toolbar">
+                    <button id="fail-fc-force-success" class="fc-force-btn"><i data-lucide="check-circle-2"></i> 성공으로 간주</button>
+                    <label class="fc-toggle-label">
+                      <span class="fc-toggle-text">자동 넘어가기</span>
+                      <span class="fc-toggle-switch">
+                        <input type="checkbox" id="fail-fc-auto-advance" class="fc-toggle-input"/>
+                        <span class="fc-toggle-slider"></span>
+                      </span>
+                    </label>
+                  </div>
+                  <div class="fc-countdown" id="fail-fc-countdown" style="display:none;"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fc-done-state" id="fail-fc-done">
+              <div class="fc-done-icon">🎉</div>
+              <h4>연습 완료!</h4>
+              <p>모든 실패 카드를 학습했어요.</p>
+              <button class="btn btn-primary btn-sm" id="fail-fc-restart-btn">다시 하기 🔄</button>
+            </div>
+          </div>
+
+          <div class="fc-divider"></div>
+
+          <!-- 성공 카드 연습 -->
+          <div class="fc-section">
+            <div class="fc-section-header">
+              <div class="fc-title-row">
+                <h3><span class="emoji">⭐</span> 성공 카드 연습</h3>
+                <span class="fc-count-badge" id="success-fc-count">0장</span>
+              </div>
+              <button id="btn-start-success-fc" class="btn btn-primary btn-sm">시작하기 ▶</button>
+            </div>
+
+            <div class="fc-ready-state" id="success-fc-ready">
+              <div class="fc-ready-icon">🌟</div>
+              <p>성공한 카드를 직접 복습해요.<br>맞추면 <strong>다음 단계</strong>로, 틀리면 <strong>실패</strong>로 이동해요!</p>
+            </div>
+
+            <div class="fc-arena" id="success-fc-arena">
+              <div class="fc-progress-wrap">
+                <span class="fc-progress-text" id="success-fc-progress">0 / 0</span>
+                <div class="fc-progress-bar"><div class="fc-progress-fill" id="success-fc-fill"></div></div>
+              </div>
+              <div class="fc-card">
+                <div class="fc-card-korean" id="success-fc-korean"></div>
+                <div class="fc-card-english blurred" id="success-fc-english"></div>
+                <div class="fc-input-panel">
+                  <div class="fc-input-wrap">
+                    <input type="text" id="success-fc-input" class="fc-input" placeholder="영어로 입력 후 Enter…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+                    <button id="success-fc-voice-btn" class="fc-voice-btn" title="음성 입력"><i data-lucide="mic"></i></button>
+                  </div>
+                  <div class="fc-feedback" id="success-fc-feedback"></div>
+                  <div class="fc-assess-row" id="success-fc-assess-row">
+                    <button class="btn-assess btn-assess-fail" id="success-fc-wrong-btn">❌ 몰랐어요</button>
+                    <button class="btn-assess btn-assess-success" id="success-fc-correct-btn">✅ 알았어요!</button>
+                  </div>
+                  <div class="fc-toolbar">
+                    <button id="success-fc-force-success" class="fc-force-btn"><i data-lucide="check-circle-2"></i> 성공으로 간주</button>
+                    <label class="fc-toggle-label">
+                      <span class="fc-toggle-text">자동 넘어가기</span>
+                      <span class="fc-toggle-switch">
+                        <input type="checkbox" id="success-fc-auto-advance" class="fc-toggle-input"/>
+                        <span class="fc-toggle-slider"></span>
+                      </span>
+                    </label>
+                  </div>
+                  <div class="fc-countdown" id="success-fc-countdown" style="display:none;"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fc-done-state" id="success-fc-done">
+              <div class="fc-done-icon">🏆</div>
+              <h4>연습 완료!</h4>
+              <p>모든 성공 카드를 복습했어요.</p>
+              <button class="btn btn-primary btn-sm" id="success-fc-restart-btn">다시 하기 🔄</button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- 탭 3: 복습 보관함 (실패 카드 및 성공 횟수별 복습 카드) -->
       <section id="tab-review" class="tab-section">
         <div class="review-header-bar">
           <div class="review-title-area">
@@ -166,6 +298,10 @@
                 <div class="group-title">✨ 6회 성공 (대기: <span class="stage-time">2년</span>)</div>
                 <div class="group-cards" id="success-stage-6"></div>
               </div>
+              <div class="success-group" data-stage="7">
+                <div class="group-title">🏆 마스터 (암기 완료! 🎉)</div>
+                <div class="group-cards" id="success-stage-7"></div>
+              </div>
             </div>
 
           </div>
@@ -177,8 +313,14 @@
       <div class="pattern-overlay-backdrop" id="pattern-overlay-backdrop"></div>
       <div class="pattern-overlay-panel" id="pattern-overlay-panel">
         <div class="panel-header">
-          <h3 id="pattern-column-title"><span class="emoji">💡</span> 비슷한 패턴 카드</h3>
-          <button class="btn-panel-close" id="btn-close-pattern-panel">&times;</button>
+          <div class="panel-header-title-row">
+            <h3 id="pattern-column-title"><span class="emoji">💡</span> 비슷한 패턴 카드</h3>
+            <span class="header-count" id="pattern-cards-count">(0)</span>
+            <button id="btn-shuffle-pattern" class="btn-header-action" title="순서 섞기" style="margin-left: 8px;">
+              <i data-lucide="shuffle"></i>
+            </button>
+          </div>
+          <button class="btn-close" id="btn-close-pattern-panel">&times;</button>
         </div>
         
         <div class="panel-body">
@@ -323,6 +465,6 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- JavaScript logic -->
-  <script type="module" src="app.js?v=1.0.1"></script>
+  <script type="module" src="app.js?v=1.0.6"></script>
 </body>
 </html>
