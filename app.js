@@ -115,7 +115,7 @@ function checkSession() {
     document.getElementById("main-view").style.display = "block";
     startSync();
   } else {
-    if (titleEl) titleEl.innerText = "영어 놀이터";
+    if (titleEl) titleEl.innerText = "소소한 가족의 영어 놀이터";
     const userBadge = document.getElementById("user-badge");
     if (userBadge) userBadge.style.display = "none";
     document.getElementById("btn-logout-header").style.display = "none";
@@ -197,7 +197,6 @@ function setupNicknameCardEvents() {
       const nick = card.dataset.nick;
       localStorage.setItem("nickname", nick);
       checkSession();
-      showToast(`${nick}님으로 입장했습니다! 🌸`, "success");
     });
   });
 
@@ -243,7 +242,6 @@ async function handleAddNickname() {
   localStorage.setItem("nickname", value);
   input.value = "";
   checkSession();
-  showToast(`${value}님으로 신규 입장했습니다! 🌸`, "success");
 }
 
 // 닉네임 삭제 확인 모달
@@ -798,6 +796,16 @@ function renderReviewSection() {
 
         // 대기 중이면 시간 표시, 대기가 끝났으면 자가 채점 버튼(성공/실패) 활성화
         // 단, 7단계 마스터 단계는 복습 대상이 아니므로 자가 채점 대신 완료 배지 고정 노출
+        const isSpeedy = document.getElementById("toggle-speedy-mode")?.checked || false;
+        let finalNextTestAt = nextTestAt;
+        if (isSpeedy && card.lastSuccessAt) {
+          const lastSuccess = new Date(parseDate(card.lastSuccessAt));
+          const intervals = [10000, 20000, 30000, 40000, 50000, 60000];
+          const idx = Math.min((card.successCount || 1) - 1, intervals.length - 1);
+          finalNextTestAt = new Date(lastSuccess.getTime() + intervals[idx]);
+        }
+        const finalIsReady = finalNextTestAt ? (new Date() >= new Date(finalNextTestAt)) : true;
+
         let controlsHtml = "";
         if (i === 7) {
           controlsHtml = `
@@ -805,7 +813,7 @@ function renderReviewSection() {
               🏆 마스터 완료!
             </div>
           `;
-        } else if (isReady) {
+        } else if (finalIsReady) {
           controlsHtml = `
             <div class="self-assess-btn-group">
               <button class="btn-assess btn-assess-success" data-id="${card.id}">
@@ -818,7 +826,7 @@ function renderReviewSection() {
           `;
         } else {
           controlsHtml = `
-            <div class="countdown-timer-text" data-next-test-at="${nextTestAt ? new Date(nextTestAt).toISOString() : ''}">
+            <div class="countdown-timer-text" data-next-test-at="${finalNextTestAt ? new Date(finalNextTestAt).toISOString() : ''}">
               ⏳ 계산 중...
             </div>
           `;
@@ -1064,16 +1072,87 @@ function safeAddListener(id, event, callback) {
 
 // ==================== FLASH CARDS ====================
 function updateFlashCardCounts() {
+  const isSpeedy = document.getElementById("toggle-speedy-mode")?.checked || false;
   const failCount = patternCards.filter(c => c.status === 'fail').length;
-  const successCount = patternCards.filter(c => {
+  const successDueCards = patternCards.filter(c => {
     if (c.status !== 'success' || (c.successCount || 0) < 1 || (c.successCount || 0) >= 7) return false;
-    const nextTestAt = parseDate(c.nextTestAt);
+    let nextTestAt = parseDate(c.nextTestAt);
+    if (isSpeedy && c.lastSuccessAt) {
+      const lastSuccess = new Date(parseDate(c.lastSuccessAt));
+      const intervals = [10000, 20000, 30000, 40000, 50000, 60000];
+      const idx = Math.min((c.successCount || 1) - 1, intervals.length - 1);
+      nextTestAt = new Date(lastSuccess.getTime() + intervals[idx]);
+    }
     return nextTestAt ? (new Date() >= new Date(nextTestAt)) : true;
-  }).length;
+  });
+  const successCount = successDueCards.length;
+
   const failBadge = document.getElementById('fail-fc-count');
   const successBadge = document.getElementById('success-fc-count');
   if (failBadge) failBadge.textContent = `${failCount}장`;
   if (successBadge) successBadge.textContent = `${successCount}장`;
+
+  const startBtn = document.getElementById('btn-start-success-fc');
+  const readyEl = document.getElementById('success-fc-ready');
+
+  if (startBtn && readyEl) {
+    if (successCount > 0) {
+      startBtn.disabled = false;
+      readyEl.innerHTML = `
+        <div class="fc-ready-icon">🌟</div>
+        <p>성공한 카드를 직접 복습해요.<br>맞추면 <strong>다음 단계</strong>로, 틀리면 <strong>실패</strong>로 이동해요!</p>
+      `;
+    } else {
+      startBtn.disabled = true;
+      const pendingSuccessCards = patternCards.filter(c => c.status === 'success' && (c.successCount || 0) < 7);
+      if (pendingSuccessCards.length === 0) {
+        readyEl.innerHTML = `
+          <div class="fc-ready-icon">🌟</div>
+          <p>성공한 카드가 아직 없습니다.<br>암기장에 패턴 카드를 추가하고 성공을 체크해 보세요! ✨</p>
+        `;
+      } else {
+        const sorted = pendingSuccessCards.map(c => {
+          let nextDate = parseDate(c.nextTestAt);
+          if (isSpeedy && c.lastSuccessAt) {
+            const lastSuccess = new Date(parseDate(c.lastSuccessAt));
+            const intervals = [10000, 20000, 30000, 40000, 50000, 60000];
+            const idx = Math.min((c.successCount || 1) - 1, intervals.length - 1);
+            nextDate = new Date(lastSuccess.getTime() + intervals[idx]);
+          }
+          return {
+            ...c,
+            nextDate: nextDate
+          };
+        }).filter(c => c.nextDate && c.nextDate > new Date())
+          .sort((a, b) => a.nextDate - b.nextDate);
+
+        if (sorted.length > 0) {
+          const earliest = sorted[0].nextDate;
+          const diff = earliest - new Date();
+          const seconds = Math.max(0, Math.floor((diff / 1000) % 60));
+          const minutes = Math.max(0, Math.floor((diff / (1000 * 60)) % 60));
+          const hours = Math.max(0, Math.floor((diff / (1000 * 60 * 60)) % 24));
+          const days = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+          
+          let timeStr = "";
+          if (days > 0) timeStr = `${days}일 ${hours}시간 ${minutes}분`;
+          else if (hours > 0) timeStr = `${hours}시간 ${minutes}분 ${seconds}초`;
+          else if (minutes > 0) timeStr = `${minutes}분 ${seconds}초`;
+          else timeStr = `${seconds}초`;
+
+          readyEl.innerHTML = `
+            <div class="fc-ready-icon">⏳</div>
+            <p>복습 대기 중입니다.<br>다음 연습까지 남은 시간:<br><strong style="font-size: 1.25rem; color: #7AA2E3;">${timeStr}</strong></p>
+          `;
+        } else {
+          readyEl.innerHTML = `
+            <div class="fc-ready-icon">🌟</div>
+            <p>복습할 카드가 없습니다.<br>새로운 카드를 연습해보세요!</p>
+          `;
+        }
+      }
+    }
+  }
 }
 
 // ---------- 실패 카드 연습 ----------
@@ -1466,9 +1545,9 @@ function updateDarkModeIcon(isDark) {
   const icon = document.querySelector("#btn-dark-mode-toggle i");
   if (icon) {
     if (isDark) {
-      icon.setAttribute("data-lucide", "moon");
-    } else {
       icon.setAttribute("data-lucide", "sun");
+    } else {
+      icon.setAttribute("data-lucide", "moon");
     }
     lucide.createIcons();
   }
@@ -1632,13 +1711,18 @@ function setupEventListeners() {
   });
 
   // 8. 가속 모드 변경 시 즉시 렌더링 갱신
-  safeAddListener("toggle-speedy-mode", "change", () => {
-    renderReviewSection();
-    const speedyEl = document.getElementById("toggle-speedy-mode");
-    const isChecked = speedyEl ? speedyEl.checked : false;
-    showToast(isChecked ? 
-      "테스트용 가속 복습 모드가 활성화되었습니다! ⚡" : "복습 모드가 실서비스 모드로 복귀했습니다.", "info");
-  });
+  const speedyEl = document.getElementById("toggle-speedy-mode");
+  if (speedyEl) {
+    const isSpeedyStored = localStorage.getItem("speedy-mode") === "true";
+    speedyEl.checked = isSpeedyStored;
+    
+    speedyEl.addEventListener("change", () => {
+      localStorage.setItem("speedy-mode", speedyEl.checked);
+      renderReviewSection();
+      showToast(speedyEl.checked ? 
+        "테스트용 가속 복습 모드가 활성화되었습니다! ⚡" : "복습 모드가 실서비스 모드로 복귀했습니다.", "info");
+    });
+  }
 
   // 9. 패턴 패널 닫기 버튼 및 뒷배경 클릭 처리
   safeAddListener("btn-close-pattern-panel", "click", closePatternPanel);
@@ -1787,6 +1871,13 @@ function setupMainSentenceCardClicks() {
       }
     });
 
+    // 대표문장 편집 버튼
+    card.querySelector(".btn-edit-main").addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = e.currentTarget.dataset.id;
+      openEditMainSentenceModal(id);
+    });
+
     // 대표문장 삭제 버튼
     card.querySelector(".btn-delete").addEventListener("click", (e) => {
       e.stopPropagation();
@@ -1804,6 +1895,15 @@ function setupMainSentenceCardClicks() {
 }
 
 function setupPatternCardEvents() {
+  // 패턴 카드 편집
+  document.querySelectorAll(".btn-edit-pattern").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = e.currentTarget.dataset.id;
+      openEditPatternCardModal(id);
+    });
+  });
+
   // 패턴 카드 삭제
   document.querySelectorAll(".btn-delete-pattern").forEach(btn => {
     btn.addEventListener("click", (e) => {
@@ -1890,7 +1990,6 @@ function handleLogout() {
   patternCards = [];
   
   checkSession();
-  showToast("로그아웃되었습니다.", "info");
 }
 
 // ==================== COMMON UI MODALS & TOASTS ====================

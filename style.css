@@ -154,12 +154,13 @@ body {
 
 .header-logo h1 {
   font-family: 'Fredoka', 'Gowun Dodum', sans-serif;
-  font-size: 1.15rem; /* 원래 1.5rem에서 눈에 보이는 크기 축소 */
+  font-size: 1.3rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #6C5DD3, #A0C4FF);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #6C5DD3;
+  text-shadow: 
+    1px 1px 0px #BAD5FF,
+    2px 2px 0px #BAD5FF,
+    3px 3px 2px rgba(108, 93, 211, 0.3);
 }
 
 .btn-dark-mode-toggle {
@@ -215,6 +216,13 @@ body {
   height: 20px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
 /* Dark Mode Override Variables */
 body.dark-mode {
   --bg-color: #16120E;
@@ -236,6 +244,22 @@ body.dark-mode {
 body.dark-mode .app-header {
   background: rgba(36, 29, 24, 0.85);
   border-color: #3D332B;
+}
+
+body.dark-mode .header-logo h1 {
+  color: #A0C4FF;
+  text-shadow: 
+    1px 1px 0px #3D6EB8,
+    2px 2px 0px #3D6EB8,
+    3px 3px 2px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .auth-card h2 {
+  color: #F8B4B4;
+  text-shadow: 
+    1px 1px 0px #A86464,
+    2px 2px 0px #A86464,
+    3px 3px 4px rgba(0, 0, 0, 0.5);
 }
 
 body.dark-mode .tab-navigation {
@@ -429,9 +453,16 @@ body.dark-mode .btn-secondary {
 }
 
 .auth-card h2 {
+  font-family: 'Fredoka', 'Gowun Dodum', sans-serif;
   font-size: 1.8rem;
   font-weight: 600;
-  margin-bottom: 8px;
+  color: #FFB7B2;
+  text-shadow: 
+    1px 1px 0px #FFDAC1,
+    2px 2px 0px #FFDAC1,
+    3px 3px 0px #E2F0CB,
+    4px 4px 4px rgba(74, 63, 53, 0.15);
+  margin-bottom: 16px;
 }
 
 .auth-subtitle {
