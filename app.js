@@ -362,6 +362,34 @@ function showCuteConfirm(title, desc) {
   });
 }
 
+// ==================== SCARY CONFIRM DIALOG HELPER ====================
+function showScaryConfirm() {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("modal-scary-confirm");
+    modal.classList.add("active");
+    
+    const btnOk = document.getElementById("btn-scary-ok");
+    const btnCancel = document.getElementById("btn-scary-cancel");
+    
+    const handleOk = () => {
+      modal.classList.remove("active");
+      btnOk.removeEventListener("click", handleOk);
+      btnCancel.removeEventListener("click", handleCancel);
+      resolve(true);
+    };
+    
+    const handleCancel = () => {
+      modal.classList.remove("active");
+      btnOk.removeEventListener("click", handleOk);
+      btnCancel.removeEventListener("click", handleCancel);
+      resolve(false);
+    };
+    
+    btnOk.addEventListener("click", handleOk);
+    btnCancel.addEventListener("click", handleCancel);
+  });
+}
+
 // ==================== FIREBASE/MOCK SYNC & CRUD ====================
 function startSync() {
   if (mainSentencesUnsubscribe) mainSentencesUnsubscribe();
@@ -780,7 +808,7 @@ function renderReviewSection() {
         <div class="card-controls">
           <div class="self-assess-btn-group">
             <button class="btn-assess btn-assess-success" data-id="${card.id}">
-              성공 처리 👍
+              성공 처리 <i data-lucide="check" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-left: 2px;"></i>
             </button>
           </div>
         </div>
@@ -1270,6 +1298,12 @@ function updateFlashCardCounts() {
 
 // ---------- 실패 카드 연습 ----------
 function startFailPractice() {
+  const startBtn = document.getElementById('btn-start-fail-fc');
+  if (startBtn && startBtn.textContent.includes("그만하기")) {
+    restartFailPractice();
+    return;
+  }
+
   fcFailDeck = shuffleArray(patternCards.filter(c => c.status === 'fail'));
   fcFailIndex = 0;
   if (fcFailDeck.length === 0) {
@@ -1417,13 +1451,19 @@ function showFailFCCard() {
   const startBtn = document.getElementById('btn-start-fail-fc');
 
   if (readyEl)  readyEl.style.display  = 'none';
-  if (startBtn) startBtn.style.display = 'none';
 
   if (fcFailIndex >= fcFailDeck.length) {
     if (arenaEl) arenaEl.style.display = 'none';
     if (doneEl)  doneEl.style.display  = 'flex';
+    if (startBtn) startBtn.style.display = 'none';
     updateFlashCardCounts();
     return;
+  }
+
+  if (startBtn) {
+    startBtn.style.display = 'inline-block';
+    startBtn.textContent = '그만하기 ⏹';
+    startBtn.className = 'btn btn-secondary btn-sm';
   }
 
   if (arenaEl) arenaEl.style.display = 'block';
@@ -1494,12 +1534,22 @@ function restartFailPractice() {
   if (readyEl)  readyEl.style.display  = 'flex';
   if (arenaEl)  arenaEl.style.display  = 'none';
   if (doneEl)   doneEl.style.display   = 'none';
-  if (startBtn) startBtn.style.display = 'block';
+  if (startBtn) {
+    startBtn.style.display = 'inline-block';
+    startBtn.textContent = '시작하기 ▶';
+    startBtn.className = 'btn btn-danger btn-sm';
+  }
   updateFlashCardCounts();
 }
 
 // ---------- 성공 카드 연습 ----------
 function startSuccessPractice() {
+  const startBtn = document.getElementById('btn-start-success-fc');
+  if (startBtn && startBtn.textContent.includes("그만하기")) {
+    restartSuccessPractice();
+    return;
+  }
+
   const isSpeedy = document.getElementById("toggle-speedy-mode")?.checked || false;
   fcSuccessDeck = shuffleArray(patternCards.filter(c => {
     if (c.status !== 'success' || (c.successCount || 0) < 1 || (c.successCount || 0) >= 7) return false;
@@ -1530,12 +1580,18 @@ function showSuccessFCCard() {
   const startBtn = document.getElementById('btn-start-success-fc');
 
   if (readyEl)  readyEl.style.display  = 'none';
-  if (startBtn) startBtn.style.display = 'none';
 
   if (fcSuccessIndex >= fcSuccessDeck.length) {
     if (arenaEl) arenaEl.style.display = 'none';
     if (doneEl)  doneEl.style.display  = 'flex';
+    if (startBtn) startBtn.style.display = 'none';
     return;
+  }
+
+  if (startBtn) {
+    startBtn.style.display = 'inline-block';
+    startBtn.textContent = '그만하기 ⏹';
+    startBtn.className = 'btn btn-secondary btn-sm';
   }
 
   if (arenaEl) arenaEl.style.display = 'block';
@@ -1624,7 +1680,11 @@ function restartSuccessPractice() {
   if (readyEl)  readyEl.style.display  = 'flex';
   if (arenaEl)  arenaEl.style.display  = 'none';
   if (doneEl)   doneEl.style.display   = 'none';
-  if (startBtn) startBtn.style.display = 'block';
+  if (startBtn) {
+    startBtn.style.display = 'inline-block';
+    startBtn.textContent = '시작하기 ▶';
+    startBtn.className = 'btn btn-primary btn-sm';
+  }
   updateFlashCardCounts();
 }
 
@@ -1869,10 +1929,16 @@ function setupEventListeners() {
     speedyEl.checked = isSpeedyStored;
     
     speedyEl.addEventListener("change", async () => {
-      localStorage.setItem("speedy-mode", speedyEl.checked);
-      
-      // 가속 모드가 켜질 때 모든 성공 카드의 lastSuccessAt을 현재 시간으로 업데이트하여 카운트다운을 처음부터 테스트할 수 있게 함
       if (speedyEl.checked) {
+        const confirmed = await showScaryConfirm();
+        if (!confirmed) {
+          speedyEl.checked = false;
+          return;
+        }
+        
+        localStorage.setItem("speedy-mode", "true");
+        
+        // 가속 모드가 켜질 때 모든 성공 카드의 lastSuccessAt을 현재 시간으로 업데이트하여 카운트다운을 처음부터 테스트할 수 있게 함
         const promises = patternCards
           .filter(card => card.status === 'success' && (card.successCount || 0) >= 1 && (card.successCount || 0) < 7)
           .map(card => {
@@ -1884,11 +1950,14 @@ function setupEventListeners() {
             });
           });
         await Promise.all(promises);
+        
+        renderReviewSection();
+        showToast("테스트용 가속 복습 모드가 활성화되었습니다! ⚡", "info");
+      } else {
+        localStorage.setItem("speedy-mode", "false");
+        renderReviewSection();
+        showToast("복습 모드가 실서비스 모드로 복귀했습니다.", "info");
       }
-      
-      renderReviewSection();
-      showToast(speedyEl.checked ? 
-        "테스트용 가속 복습 모드가 활성화되었습니다! ⚡" : "복습 모드가 실서비스 모드로 복귀했습니다.", "info");
     });
   }
 

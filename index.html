@@ -242,14 +242,6 @@
             <h3><span class="emoji">📅</span> 간격 반복 복습 (Leitner System)</h3>
             <p>자가 채점 방식으로 복습을 진행합니다. 복습일이 된 카드를 학습하고 성공/실패 여부를 체크해 주세요.</p>
           </div>
-          <!-- 가속 모드 (개발자용) 토글 -->
-          <div class="toggle-container">
-            <span class="toggle-label">⚡ 테스트용 주기 가속 모드</span>
-            <label class="switch">
-              <input type="checkbox" id="toggle-speedy-mode">
-              <span class="slider round"></span>
-            </label>
-          </div>
         </div>
 
         <div class="review-layout">
@@ -303,6 +295,17 @@
               </div>
             </div>
 
+          </div>
+        </div>
+
+        <!-- 가속 모드 (개발자용) 하단 배치 -->
+        <div class="review-footer-bar">
+          <div class="toggle-container">
+            <span class="toggle-label">⚡ 테스트용 주기 가속 모드</span>
+            <label class="switch">
+              <input type="checkbox" id="toggle-speedy-mode">
+              <span class="slider round"></span>
+            </label>
           </div>
         </div>
       </section>
@@ -453,9 +456,26 @@
           <input type="text" id="input-delete-nickname-confirm" placeholder="닉네임을 입력하세요">
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" id="btn-cancel-delete-nickname-modal">취소</button>
-        <button class="btn btn-danger" id="btn-confirm-delete-nickname" disabled>삭제 확정 🌸</button>
+    </div>
+  </div>
+
+  <!-- 5. 가속 모드 경고용 무서운 모달 -->
+  <div class="modal-backdrop" id="modal-scary-confirm">
+    <div class="modal-card modal-cute-confirm" style="border: 2px solid #D32F2F; box-shadow: 0 0 20px rgba(211, 47, 47, 0.4);">
+      <div class="modal-body text-center">
+        <div class="confirm-emoji">⚠️</div>
+        <h3 style="color: #D32F2F; font-weight: bold;">🚨 경고: 개발자 전용 모드</h3>
+        <p style="color: var(--text-main); font-weight: 600; line-height: 1.6; margin-top: 12px; font-size: 0.92rem;">
+          이 모드는 개발자 테스트용 가속 복습 모드입니다.<br>
+          활성화 시 현재 학습 중인 모든 성공 카드의 복습 대기 시간이<br>
+          <strong style="color: #D32F2F; font-size: 1.1rem;">현재 시간 기준으로 강제 리셋</strong>됩니다!<br><br>
+          실제 암기 주기가 깨지며 복구할 수 없습니다.<br>
+          정말 활성화하시겠습니까?
+        </p>
+      </div>
+      <div class="modal-footer justify-center">
+        <button class="btn btn-secondary" id="btn-scary-cancel">아니오, 취소! 😰</button>
+        <button class="btn btn-danger" id="btn-scary-ok" style="background: #D32F2F; color: white; border: none;">네, 확인했습니다! 💀</button>
       </div>
     </div>
   </div>

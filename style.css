@@ -464,21 +464,21 @@ body.dark-mode .card-badge.badge-new {
   color: #90CDF4;
 }
 body.dark-mode .card-badge.badge-success {
-  background-color: #1C4532;
-  color: #9AE6B4;
+  background-color: #142E22;
+  color: #7BB894;
 }
 body.dark-mode .card-badge.badge-fail {
   background-color: #742A2A;
   color: #FEB2B2;
 }
 body.dark-mode .btn-assess-success {
-  background-color: #1C4532;
-  color: #9AE6B4;
-  border: 1px solid #2F855A;
+  background-color: #162c20;
+  color: #79c59a;
+  border: 1px solid #234c37;
 }
 body.dark-mode .btn-assess-success:hover {
-  background-color: #276749;
-  color: #C6F6D5;
+  background-color: #1f3f2e;
+  color: #96e0b7;
 }
 body.dark-mode .btn-card-action:hover {
   background-color: #332B24;
@@ -1406,7 +1406,24 @@ input:checked + .slider:before {
   padding: 12px 16px;
   border: 1px solid var(--border-light);
   box-shadow: var(--shadow-sm);
+  border-left: 6px solid var(--primary-color);
+  transition: border-color 0.3s;
 }
+.success-group[data-stage="1"] { border-left-color: #B5EAD7; }
+.success-group[data-stage="2"] { border-left-color: #A0C4FF; }
+.success-group[data-stage="3"] { border-left-color: #C7CEEA; }
+.success-group[data-stage="4"] { border-left-color: #FFDAC1; }
+.success-group[data-stage="5"] { border-left-color: #FFB7B2; }
+.success-group[data-stage="6"] { border-left-color: #E2F0CB; }
+.success-group[data-stage="7"] { border-left-color: #FFD3B6; }
+
+body.dark-mode .success-group[data-stage="1"] { border-left-color: #1C4532; }
+body.dark-mode .success-group[data-stage="2"] { border-left-color: #1A365D; }
+body.dark-mode .success-group[data-stage="3"] { border-left-color: #44335A; }
+body.dark-mode .success-group[data-stage="4"] { border-left-color: #6E4E37; }
+body.dark-mode .success-group[data-stage="5"] { border-left-color: #742A2A; }
+body.dark-mode .success-group[data-stage="6"] { border-left-color: #4E5A3E; }
+body.dark-mode .success-group[data-stage="7"] { border-left-color: #8C6A3B; }
 
 .success-group .group-title {
   font-size: 0.9rem;
@@ -2143,5 +2160,47 @@ body.dark-mode .fc-card-badge-success {
   border: none;
   border-radius: 2px;
   margin: 0;
+}
+
+/* ==================== ADDITIONAL REFINEMENTS ==================== */
+.review-footer-bar {
+  margin-top: 24px;
+  padding: 16px 24px;
+  background: var(--white);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(255,255,255,0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+body.dark-mode .review-footer-bar {
+  border-color: var(--border-light);
+  background: var(--white);
+}
+
+body.dark-mode .fc-submit-btn {
+  background: linear-gradient(135deg, #1A3C2F, #122B21);
+  color: #7BB894;
+}
+body.dark-mode .fc-submit-btn:hover {
+  box-shadow: 0 4px 12px rgba(28, 69, 50, 0.4);
+}
+
+body.dark-mode .fc-voice-btn {
+  background: linear-gradient(135deg, #233C5B, #17273C);
+  color: #90CDF4;
+}
+body.dark-mode .fc-voice-btn:hover {
+  box-shadow: 0 4px 12px rgba(35, 60, 91, 0.4);
+}
+
+body.dark-mode .fc-force-btn {
+  background: linear-gradient(135deg, #1C352D, #12241E);
+  color: #68A082;
+}
+body.dark-mode .fc-force-btn:hover {
+  box-shadow: 0 4px 12px rgba(28, 53, 45, 0.4);
 }
 
