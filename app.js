@@ -542,6 +542,21 @@ async function deletePatternCard(id) {
   }
 }
 
+async function resetPatternCardReview(id) {
+  const confirmed = await showCuteConfirm("복습 보관함에서 삭제", "이 패턴 카드를 복습 보관함에서 삭제하시겠습니까?\n(나의 암기장에는 유지되며 복습 상태가 초기화됩니다) 🧸");
+  if (confirmed) {
+    await updatePatternCard(id, {
+      status: 'new',
+      successCount: 0,
+      lastSuccessAt: null,
+      nextTestAt: null
+    });
+    if (selectedMainSentenceId) {
+      renderPatternCards();
+    }
+  }
+}
+
 async function updatePatternCard(id, updates) {
   if (isFirebaseActive && db) {
     const docRef = doc(db, "users", nickname, "patternCards", id);
@@ -748,7 +763,7 @@ function renderReviewSection() {
             <button class="btn-card-action btn-edit-pattern" data-id="${card.id}" title="편집">
               <i data-lucide="edit-3"></i>
             </button>
-            <button class="btn-card-action btn-delete-pattern" data-id="${card.id}">
+            <button class="btn-card-action btn-remove-review" data-id="${card.id}" title="복습 보관함에서 삭제">
               <i data-lucide="trash-2"></i>
             </button>
           </div>
@@ -901,7 +916,7 @@ function renderReviewSection() {
                 <button class="btn-card-action btn-edit-pattern" data-id="${card.id}" title="편집">
                   <i data-lucide="edit-3"></i>
                 </button>
-                <button class="btn-card-action btn-delete-pattern" data-id="${card.id}">
+                 <button class="btn-card-action btn-remove-review" data-id="${card.id}" title="복습 보관함에서 삭제">
                   <i data-lucide="trash-2"></i>
                 </button>
               </div>
@@ -948,7 +963,8 @@ function startCountdownTimer() {
       const targetStr = timer.getAttribute("data-next-test-at");
       if (!targetStr) return;
 
-      const targetDate = new Date(targetStr);
+       const targetDate = new Date(targetStr);
+      if (isNaN(targetDate.getTime())) return;
       const now = new Date();
       const diff = targetDate - now;
 
@@ -1808,8 +1824,24 @@ function setupEventListeners() {
     const isSpeedyStored = localStorage.getItem("speedy-mode") === "true";
     speedyEl.checked = isSpeedyStored;
     
-    speedyEl.addEventListener("change", () => {
+    speedyEl.addEventListener("change", async () => {
       localStorage.setItem("speedy-mode", speedyEl.checked);
+      
+      // 가속 모드가 켜질 때 모든 성공 카드의 lastSuccessAt을 현재 시간으로 업데이트하여 카운트다운을 처음부터 테스트할 수 있게 함
+      if (speedyEl.checked) {
+        const promises = patternCards
+          .filter(card => card.status === 'success' && (card.successCount || 0) >= 1 && (card.successCount || 0) < 7)
+          .map(card => {
+            const count = card.successCount || 1;
+            const nextTest = new Date(new Date().getTime() + count * 30000);
+            return updatePatternCard(card.id, {
+              lastSuccessAt: new Date(),
+              nextTestAt: nextTest
+            });
+          });
+        await Promise.all(promises);
+      }
+      
       renderReviewSection();
       showToast(speedyEl.checked ? 
         "테스트용 가속 복습 모드가 활성화되었습니다! ⚡" : "복습 모드가 실서비스 모드로 복귀했습니다.", "info");
@@ -2002,6 +2034,15 @@ function setupPatternCardEvents() {
       e.stopPropagation();
       const id = e.currentTarget.dataset.id;
       deletePatternCard(id);
+    });
+  });
+
+  // 복습 보관함에서만 삭제 (복습 상태 초기화)
+  document.querySelectorAll(".btn-remove-review").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = e.currentTarget.dataset.id;
+      resetPatternCardReview(id);
     });
   });
 
