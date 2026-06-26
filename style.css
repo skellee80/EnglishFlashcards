@@ -262,6 +262,33 @@ body.dark-mode .auth-card h2 {
     3px 3px 4px rgba(0, 0, 0, 0.5);
 }
 
+/* Dark mode buttons override */
+body.dark-mode .btn-primary {
+  background: linear-gradient(135deg, #3D6EB8, #2A4D80);
+  border: 1px solid #4D8BF0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  color: #FFFFFF;
+}
+body.dark-mode .btn-primary:hover {
+  background: linear-gradient(135deg, #4D8BF0, #3D6EB8);
+}
+body.dark-mode .btn-secondary {
+  background: #241D18;
+  color: #F5EFEB;
+  border-color: #3D332B;
+}
+body.dark-mode .btn-secondary:hover {
+  background: #332B24;
+}
+body.dark-mode .btn-danger {
+  background: linear-gradient(135deg, #A84444, #7E2A2A);
+  color: #FFFFFF;
+  border: 1px solid #C95A5A;
+}
+body.dark-mode .btn-danger:hover {
+  background: linear-gradient(135deg, #C95A5A, #A84444);
+}
+
 body.dark-mode .tab-navigation {
   background: rgba(36, 29, 24, 0.7);
   border-color: #3D332B;

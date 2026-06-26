@@ -791,9 +791,7 @@ function renderReviewSection() {
         let finalNextTestAt = parseDate(card.nextTestAt);
         if (isSpeedy && card.lastSuccessAt) {
           const lastSuccess = new Date(parseDate(card.lastSuccessAt));
-          const intervals = [10000, 20000, 30000, 40000, 50000, 60000];
-          const idx = Math.min((card.successCount || 1) - 1, intervals.length - 1);
-          finalNextTestAt = new Date(lastSuccess.getTime() + intervals[idx]);
+          finalNextTestAt = new Date(lastSuccess.getTime() + 30000);
         }
         const finalIsReady = finalNextTestAt ? (new Date() >= new Date(finalNextTestAt)) : true;
         
@@ -917,8 +915,8 @@ function calculateNextTestTime(successCount, isSpeedy) {
   let msToAdd = 0;
 
   if (isSpeedy) {
-    // 가속 복습 주기: 테스트 편의를 위해 즉시(0초) 대기로 변경하여 연속 성공 유도
-    msToAdd = 0;
+    // 가속 복습 주기: 1회 ~ 6회 성공 모두 각 30초씩 적용
+    msToAdd = 30 * 1000;
   } else {
     // 실제 주기: 2주, 1달, 3달, 6달, 1년, 2년
     const DAY = 24 * 60 * 60 * 1000;
@@ -1071,9 +1069,7 @@ function updateFlashCardCounts() {
     let nextTestAt = parseDate(c.nextTestAt);
     if (isSpeedy && c.lastSuccessAt) {
       const lastSuccess = new Date(parseDate(c.lastSuccessAt));
-      const intervals = [10000, 20000, 30000, 40000, 50000, 60000];
-      const idx = Math.min((c.successCount || 1) - 1, intervals.length - 1);
-      nextTestAt = new Date(lastSuccess.getTime() + intervals[idx]);
+      nextTestAt = new Date(lastSuccess.getTime() + 30000);
     }
     return nextTestAt ? (new Date() >= new Date(nextTestAt)) : true;
   });
@@ -1107,9 +1103,7 @@ function updateFlashCardCounts() {
           let nextDate = parseDate(c.nextTestAt);
           if (isSpeedy && c.lastSuccessAt) {
             const lastSuccess = new Date(parseDate(c.lastSuccessAt));
-            const intervals = [10000, 20000, 30000, 40000, 50000, 60000];
-            const idx = Math.min((c.successCount || 1) - 1, intervals.length - 1);
-            nextDate = new Date(lastSuccess.getTime() + intervals[idx]);
+            nextDate = new Date(lastSuccess.getTime() + 30000);
           }
           return {
             ...c,
@@ -1287,6 +1281,7 @@ function addFlashCardInputListeners() {
 }
 
 function showFailFCCard() {
+  isCurrentFCAroundCorrect = false;
   const readyEl  = document.getElementById('fail-fc-ready');
   const arenaEl  = document.getElementById('fail-fc-arena');
   const doneEl   = document.getElementById('fail-fc-done');
@@ -1343,12 +1338,16 @@ async function handleFailCardCorrect() {
   if (!card) return;
   const isSpeedy = document.getElementById("toggle-speedy-mode")?.checked || false;
   const nextTest = calculateNextTestTime(1, isSpeedy);
-  await updatePatternCard(card.id, {
-    status: 'success',
-    successCount: 1,
-    lastSuccessAt: new Date(),
-    nextTestAt: nextTest
-  });
+  try {
+    await updatePatternCard(card.id, {
+      status: 'success',
+      successCount: 1,
+      lastSuccessAt: new Date(),
+      nextTestAt: nextTest
+    });
+  } catch (e) {
+    console.error("Failed to update pattern card:", e);
+  }
   fcFailIndex++;
   showFailFCCard();
 }
@@ -1378,9 +1377,7 @@ function startSuccessPractice() {
     let nextTestAt = parseDate(c.nextTestAt);
     if (isSpeedy && c.lastSuccessAt) {
       const lastSuccess = new Date(parseDate(c.lastSuccessAt));
-      const intervals = [10000, 20000, 30000, 40000, 50000, 60000];
-      const idx = Math.min((c.successCount || 1) - 1, intervals.length - 1);
-      nextTestAt = new Date(lastSuccess.getTime() + intervals[idx]);
+      nextTestAt = new Date(lastSuccess.getTime() + 30000);
     }
     return nextTestAt ? (new Date() >= new Date(nextTestAt)) : true;
   }));
@@ -1393,6 +1390,7 @@ function startSuccessPractice() {
 }
 
 function showSuccessFCCard() {
+  isCurrentFCAroundCorrect = false;
   const readyEl  = document.getElementById('success-fc-ready');
   const arenaEl  = document.getElementById('success-fc-arena');
   const doneEl   = document.getElementById('success-fc-done');
@@ -1449,12 +1447,16 @@ async function handleSuccessCardCorrect() {
   const newSuccessCount = Math.min((card.successCount || 0) + 1, 7);
   const isSpeedy = document.getElementById("toggle-speedy-mode")?.checked || false;
   const nextTest = calculateNextTestTime(newSuccessCount, isSpeedy);
-  await updatePatternCard(card.id, {
-    status: 'success',
-    successCount: newSuccessCount,
-    lastSuccessAt: new Date(),
-    nextTestAt: nextTest
-  });
+  try {
+    await updatePatternCard(card.id, {
+      status: 'success',
+      successCount: newSuccessCount,
+      lastSuccessAt: new Date(),
+      nextTestAt: nextTest
+    });
+  } catch (e) {
+    console.error("Failed to update pattern card:", e);
+  }
   fcSuccessIndex++;
   showSuccessFCCard();
 }
@@ -1462,12 +1464,16 @@ async function handleSuccessCardCorrect() {
 async function handleSuccessCardWrong() {
   const card = fcSuccessDeck[fcSuccessIndex];
   if (!card) return;
-  await updatePatternCard(card.id, {
-    status: 'fail',
-    successCount: 0,
-    lastSuccessAt: null,
-    nextTestAt: null
-  });
+  try {
+    await updatePatternCard(card.id, {
+      status: 'fail',
+      successCount: 0,
+      lastSuccessAt: null,
+      nextTestAt: null
+    });
+  } catch (e) {
+    console.error("Failed to update pattern card:", e);
+  }
   fcSuccessIndex++;
   showSuccessFCCard();
 }
