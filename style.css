@@ -240,7 +240,7 @@ body.dark-mode .btn-dark-mode-toggle:active .toggle-thumb {
   transform: translateX(23px);
 }
 body.dark-mode .btn-dark-mode-toggle .toggle-icon.left {
-  color: #4A5568;
+  color: #FFAE00;
 }
 body.dark-mode .btn-dark-mode-toggle .toggle-icon.right {
   color: #A3BFFA;
@@ -1096,6 +1096,10 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover {
   transition: filter 0.2s ease;
 }
 
+body.dark-mode .card-english {
+  color: #A8D4F0;
+}
+
 .card-english.blurred {
   filter: blur(5px);
   user-select: none;
@@ -1361,6 +1365,13 @@ input:checked + .slider:before {
   min-height: 600px;
   display: flex;
   flex-direction: column;
+}
+
+.failed-column {
+  border-left: 6px solid #FFB7B2;
+}
+body.dark-mode .failed-column {
+  border-left: 6px solid #742A2A;
 }
 
 .column-header-red {
@@ -1902,6 +1913,10 @@ body.dark-mode .fc-card-badge-success {
   width: 100%;
   min-height: 32px;
   transition: filter 0.35s ease, opacity 0.35s ease;
+}
+
+body.dark-mode .fc-card-english {
+  color: #A8D4F0;
 }
 
 .fc-card-english.blurred {
