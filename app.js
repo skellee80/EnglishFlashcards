@@ -846,10 +846,24 @@ function renderReviewSection() {
         }
         
         let finalIsReady = false;
+        let elapsedText = "";
         if (finalNextTestAt) {
           const nextTime = new Date(finalNextTestAt).getTime();
           if (!isNaN(nextTime)) {
-            finalIsReady = (new Date().getTime() >= nextTime);
+            const nowTime = new Date().getTime();
+            if (nowTime >= nextTime) {
+              finalIsReady = true;
+              const elapsed = nowTime - nextTime;
+              const seconds = Math.floor((elapsed / 1000) % 60);
+              const minutes = Math.floor((elapsed / (1000 * 60)) % 60);
+              const hours = Math.floor((elapsed / (1000 * 60 * 60)) % 24);
+              const days = Math.floor(elapsed / (1000 * 60 * 60 * 24));
+
+              if (days > 0) elapsedText = `+${days}일 ${hours}시간`;
+              else if (hours > 0) elapsedText = `+${hours}시간 ${minutes}분`;
+              else if (minutes > 0) elapsedText = `+${minutes}분 ${seconds}초`;
+              else elapsedText = `+${seconds}초`;
+            }
           }
         } else {
           finalIsReady = true;
@@ -869,9 +883,12 @@ function renderReviewSection() {
             </div>
           `;
         } else if (finalIsReady) {
-          const label = `⏳ 복습 가능 (플래시카드)`;
+          let label = `⏳ 복습 가능 (플래시카드)`;
+          if (elapsedText) {
+            label = `⏳ 복습 가능 (${elapsedText})`;
+          }
           controlsHtml = `
-            <div class="countdown-timer-text" style="color: #27ae60; font-weight: bold;">
+            <div class="countdown-timer-text" data-next-test-at="${finalNextTestAt ? new Date(finalNextTestAt).toISOString() : ''}" data-is-ready="true" style="color: #27ae60; font-weight: bold;">
               ${label}
             </div>
           `;
@@ -968,9 +985,31 @@ function startCountdownTimer() {
       const now = new Date();
       const diff = targetDate - now;
 
-      if (diff <= 0) {
+       if (diff <= 0) {
         // 타이머가 만료되면 카드 섹션 리렌더링하여 자가 채점 버튼 활성화
-        renderReviewSection();
+        const isReadyAttr = timer.getAttribute("data-is-ready");
+        if (isReadyAttr !== "true") {
+          timer.setAttribute("data-is-ready", "true");
+          renderReviewSection();
+          return;
+        }
+        
+        // Count up!
+        const elapsed = now - targetDate;
+        const seconds = Math.floor((elapsed / 1000) % 60);
+        const minutes = Math.floor((elapsed / (1000 * 60)) % 60);
+        const hours = Math.floor((elapsed / (1000 * 60 * 60)) % 24);
+        const days = Math.floor(elapsed / (1000 * 60 * 60 * 24));
+
+        let elapsedText = "";
+        if (days > 0) elapsedText = `+${days}일 ${hours}시간`;
+        else if (hours > 0) elapsedText = `+${hours}시간 ${minutes}분`;
+        else if (minutes > 0) elapsedText = `+${minutes}분 ${seconds}초`;
+        else elapsedText = `+${seconds}초`;
+
+        timer.innerText = `⏳ 복습 가능 (${elapsedText})`;
+        timer.style.color = "#27ae60";
+        timer.style.fontWeight = "bold";
       } else {
         const seconds = Math.floor((diff / 1000) % 60);
         const minutes = Math.floor((diff / (1000 * 60)) % 60);
@@ -1518,6 +1557,11 @@ function showSuccessFCCard() {
   if (progressEl)  progressEl.textContent = `${current} / ${total}`;
   if (fillEl)      fillEl.style.width     = `${((current - 1) / total) * 100}%`;
   if (koreanEl)    koreanEl.textContent   = card.korean;
+  
+  const badgeEl = document.getElementById('success-fc-badge');
+  if (badgeEl) {
+    badgeEl.textContent = `${card.successCount || 0}회 성공`;
+  }
   if (englishEl)   { englishEl.textContent = card.english; englishEl.classList.add('blurred'); }
   if (assessRow)   assessRow.style.display = 'none';
   if (feedbackEl)  { feedbackEl.textContent = ''; feedbackEl.className = 'fc-feedback'; }
